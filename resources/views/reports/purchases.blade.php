@@ -1,0 +1,8 @@
+@extends('layouts.app')
+@section('title', 'Laporan Pembelian')
+@section('heading', 'Laporan Pembelian')
+@section('content')
+<form class="card mb-6 flex flex-wrap items-end gap-3" method="GET"><div><label class="label">Dari</label><input class="input" name="from" type="date" value="{{ $from }}"></div><div><label class="label">Sampai</label><input class="input" name="to" type="date" value="{{ $to }}"></div><button class="btn-primary" type="submit">Tampilkan</button></form>
+<div class="grid gap-4 md:grid-cols-2 mb-6"><div class="stat-card"><p class="text-sm text-slate-500">Total pembelian</p><p class="mt-2 text-2xl font-black text-red-600">Rp {{ number_format($total, 0, ',', '.') }}</p></div><div class="stat-card"><p class="text-sm text-slate-500">Jumlah transaksi</p><p class="mt-2 text-2xl font-black">{{ $purchases->count() }}</p></div></div>
+<div class="card overflow-x-auto p-0"><table class="min-w-full text-left text-sm"><thead class="bg-slate-50 text-slate-500"><tr><th class="p-4">Nomor</th><th class="p-4">Supplier</th><th class="p-4">Barang</th><th class="p-4">Total</th><th class="p-4">Petugas</th><th class="p-4">Tanggal</th></tr></thead><tbody>@forelse($purchases as $purchase)<tr class="border-t"><td class="p-4 font-bold">{{ $purchase->number }}</td><td class="p-4">{{ $purchase->supplier->name }}</td><td class="p-4">{{ $purchase->items->pluck('product_name')->join(', ') }}</td><td class="p-4">Rp {{ number_format($purchase->total, 0, ',', '.') }}</td><td class="p-4">{{ $purchase->user->name }}</td><td class="p-4">{{ $purchase->created_at->format('d M Y H:i') }}</td></tr>@empty<tr><td colspan="6" class="p-8 text-center text-slate-500">Belum ada pembelian pada periode ini.</td></tr>@endforelse</tbody></table></div>
+@endsection
