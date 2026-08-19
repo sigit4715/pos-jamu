@@ -42,7 +42,7 @@
     </div>
     <div class="dashboard-filters">
         <span class="filter-pill">Tgl {{ now()->translatedFormat('d M Y') }}</span>
-        <span class="filter-pill">{{ auth()->user()->isAdmin() ? 'Semua Aktivitas' : 'Aktivitas Saya' }}</span>
+        <span class="filter-pill">{{ auth()->user()->hasPermission('dashboard.view_all') ? 'Semua Aktivitas' : 'Aktivitas Saya' }}</span>
         <a href="{{ route('sales.create') }}" class="btn-primary">+ Transaksi Baru</a>
     </div>
 </div>
@@ -78,6 +78,29 @@
     </article>
 </div>
 
+@if($lowStockCount > 0)
+    <section class="stock-alert" id="peringatan-stok">
+        <div class="stock-alert-title">
+            <span class="stock-alert-icon">@include('components.icon', ['name' => 'alert'])</span>
+            <div>
+                <h3>Peringatan stok menipis</h3>
+                <p>{{ $lowStockCount }} barang sudah mencapai atau berada di bawah batas minimum. Segera lakukan pembelian agar penjualan tidak terhambat.</p>
+            </div>
+        </div>
+        <div class="stock-alert-list">
+            @foreach($lowStock->take(3) as $product)
+                <a class="stock-alert-product" href="{{ route('purchases.index', ['product_id' => $product->id]) }}">
+                    <b>{{ $product->name }}</b><span>{{ $product->stock }} / min {{ $product->minimum_stock }}</span>
+                </a>
+            @endforeach
+            @if($lowStockCount > $lowStock->take(3)->count())
+                <a class="stock-alert-product" href="{{ route('stock-card.index') }}">+{{ $lowStockCount - $lowStock->take(3)->count() }} barang lainnya</a>
+            @endif
+        </div>
+        <a href="{{ route('purchases.index') }}" class="btn-primary">Input Pembelian</a>
+    </section>
+@endif
+
 <div class="mt-5 grid gap-5 xl:grid-cols-12">
     <section class="card xl:col-span-7">
         <div class="flex flex-wrap items-start justify-between gap-3">
@@ -109,29 +132,29 @@
         <div class="mt-2">
             <div class="summary-row"><span class="summary-icon bg-emerald-50 text-emerald-600">K</span><span class="text-[11px] font-semibold text-slate-500">Kas bulan ini</span><b>Rp {{ number_format($cashBalance, 0, ',', '.') }}</b></div>
             <div class="summary-row"><span class="summary-icon bg-sky-50 text-sky-600">S</span><span class="text-[11px] font-semibold text-slate-500">Nilai stok</span><b>Rp {{ number_format($stockValue, 0, ',', '.') }}</b></div>
-            @if(auth()->user()->isAdmin())
+            @if(auth()->user()->hasPermission('dashboard.view_all'))
                 <div class="summary-row"><span class="summary-icon bg-violet-50 text-violet-600">M</span><span class="text-[11px] font-semibold text-slate-500">Modal pemilik</span><b>Rp {{ number_format($ownerCapital, 0, ',', '.') }}</b></div>
                 <div class="summary-row"><span class="summary-icon bg-amber-50 text-amber-600">H</span><span class="text-[11px] font-semibold text-slate-500">Hutang supplier</span><b>Rp {{ number_format($supplierDebt, 0, ',', '.') }}</b></div>
             @else
                 <div class="summary-row"><span class="summary-icon bg-violet-50 text-violet-600">SH</span><span class="text-[11px] font-semibold text-slate-500">Status shift</span><b>{{ $currentShift ? 'Aktif' : 'Belum dibuka' }}</b></div>
             @endif
-            <div class="summary-row"><span class="summary-icon bg-rose-50 text-rose-600">E</span><span class="text-[11px] font-semibold text-slate-500">Batch segera habis</span><b>{{ $expiryAlerts->count() }} batch</b></div>
+            <div class="summary-row"><span class="summary-icon bg-rose-50 text-rose-600">E</span><span class="text-[11px] font-semibold text-slate-500">Batch segera habis</span><b>{{ $expiryAlertCount }} batch</b></div>
         </div>
     </section>
 
     <section class="card xl:col-span-2">
-        <div class="flex items-start justify-between gap-2"><div><h3 class="panel-title">Stok Menipis</h3><p class="panel-subtitle">Perlu diperiksa</p></div><span class="rounded-md bg-rose-50 px-1.5 py-1 text-[9px] font-black text-rose-600">{{ $lowStock->count() }}</span></div>
+        <div class="flex items-start justify-between gap-2"><div><h3 class="panel-title">Rekomendasi Pembelian</h3><p class="panel-subtitle">Stok sudah di batas minimum</p></div><span class="rounded-md bg-rose-50 px-1.5 py-1 text-[9px] font-black text-rose-600">{{ $lowStockCount }}</span></div>
         <div class="stock-list">
             @forelse($lowStock->take(4) as $product)
-                <a href="{{ auth()->user()->isAdmin() ? route('products.edit', $product) : route('stock-card.index') }}" class="stock-item">
-                    <span><b>{{ $product->name }}</b><small>Minimum {{ $product->minimum_stock }} {{ $product->unit }}</small></span>
-                    <span class="stock-amount">{{ $product->stock }}</span>
+                <a href="{{ route('purchases.index', ['product_id' => $product->id]) }}" class="stock-item">
+                    <span><b>{{ $product->name }}</b><small>Stok {{ $product->stock }} / minimum {{ $product->minimum_stock }} {{ $product->unit }}</small></span>
+                    <span class="stock-amount">Beli</span>
                 </a>
             @empty
                 <p class="empty-state">Semua stok aman.</p>
             @endforelse
         </div>
-        <a href="{{ route('stock-card.index') }}" class="panel-link mt-3 block text-center">Lihat semua stok</a>
+        <a href="{{ route('stock-card.index') }}" class="panel-link mt-3 block text-center">Periksa seluruh stok</a>
     </section>
 </div>
 
@@ -197,10 +220,10 @@
 @if($expiryAlerts->isNotEmpty() || $topProducts->isNotEmpty())
 <div class="mt-5 grid gap-5 lg:grid-cols-2">
     <section class="card">
-        <div class="flex items-center justify-between"><div><h3 class="panel-title">Batch Kedaluwarsa Terdekat</h3><p class="panel-subtitle">Periksa kualitas barang sebelum tanggal habis</p></div><a href="{{ route('batches.index') }}" class="panel-link">Kelola batch</a></div>
+        <div class="flex items-center justify-between"><div><h3 class="panel-title">Peringatan Batch Kedaluwarsa</h3><p class="panel-subtitle">{{ $expiryAlertCount }} batch dengan tanggal habis dalam 30 hari</p></div><a href="{{ route('batches.index') }}" class="panel-link">Kelola batch</a></div>
         <div class="stock-list">
             @forelse($expiryAlerts->take(3) as $batch)
-                <div class="stock-item"><span><b>{{ $batch->product->name }}</b><small>Batch {{ $batch->batch_number }}</small></span><span class="stock-amount">{{ $batch->expires_at->format('d M Y') }}</span></div>
+                <a href="{{ route('batches.index') }}" class="stock-item"><span><b>{{ $batch->product->name }}</b><small>Batch {{ $batch->batch_number }}</small></span><span class="stock-amount">{{ $batch->expires_at->format('d M Y') }}</span></a>
             @empty
                 <p class="empty-state">Tidak ada batch yang segera kedaluwarsa.</p>
             @endforelse

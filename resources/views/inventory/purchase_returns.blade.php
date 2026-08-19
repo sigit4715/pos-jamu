@@ -19,7 +19,7 @@
                         @php($remaining = $item->quantity - $item->returned_quantity)
                         <div class="flex flex-wrap items-center gap-3 rounded-xl bg-slate-50 p-3">
                             <input type="checkbox" name="purchase_item_id[]" value="{{ $item->id }}">
-                            <div class="min-w-[180px] flex-1"><b>{{ $item->product_name }}</b><small class="block text-slate-500">Sisa retur {{ $remaining }} · Rp {{ number_format($item->price, 0, ',', '.') }}/item</small></div>
+                            <div class="min-w-[180px] flex-1"><b>{{ $item->product_name }}</b><small class="block text-slate-500">Sisa retur {{ $remaining }} {{ $item->unit_name ?: 'pcs' }} &middot; Rp {{ number_format($item->price, 0, ',', '.') }}/{{ $item->unit_name ?: 'pcs' }}</small></div>
                             <label class="text-xs text-slate-500">Jumlah<input class="input mt-1 w-24" name="quantity[{{ $item->id }}]" type="number" min="0" max="{{ $remaining }}" value="0"></label>
                         </div>
                     @endif

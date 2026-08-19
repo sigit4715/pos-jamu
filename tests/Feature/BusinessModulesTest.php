@@ -95,7 +95,9 @@ class BusinessModulesTest extends TestCase
         $this->actingAs($admin)->get(route('dashboard'))
             ->assertOk()
             ->assertSee('Ringkasan toko hari ini')
-            ->assertSee('Ringkasan Keuangan');
+            ->assertSee('Ringkasan Keuangan')
+            ->assertSee('Rekomendasi Pembelian')
+            ->assertSee('Peringatan stok menipis');
 
         $this->actingAs($cashier)->get(route('dashboard'))
             ->assertOk()
@@ -120,5 +122,31 @@ class BusinessModulesTest extends TestCase
         ]);
         $this->actingAs($admin)->get(route('owner-capital.index'))->assertOk()->assertSee('Modal awal toko');
         $this->actingAs($admin)->get(route('reports.cash-flow'))->assertOk()->assertSee('Saldo kas akhir');
+    }
+
+    public function test_stock_opname_uses_server_side_pagination_and_links_to_stock_history(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $firstProduct = null;
+
+        foreach (range(1, 21) as $number) {
+            $product = Product::create([
+                'code' => 'OPN-'.str_pad((string) $number, 2, '0', STR_PAD_LEFT),
+                'name' => 'Produk Opname '.str_pad((string) $number, 2, '0', STR_PAD_LEFT),
+                'price' => 10000,
+                'stock' => $number,
+                'minimum_stock' => 2,
+                'unit' => 'botol',
+                'is_active' => true,
+            ]);
+            $firstProduct ??= $product;
+        }
+
+        $this->actingAs($admin)->get(route('opname.index', ['per_page' => 20]))
+            ->assertOk()
+            ->assertSee('Menampilkan 1-20 dari 21 barang.')
+            ->assertSee('Produk Opname 01')
+            ->assertDontSee('Produk Opname 21')
+            ->assertSee(route('stock-card.index', ['product_id' => $firstProduct->id]), false);
     }
 }

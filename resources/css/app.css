@@ -48,8 +48,9 @@
         @apply flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-semibold text-slate-300 no-underline transition duration-150 hover:bg-white/7 hover:text-white;
     }
     .nav-glyph {
-        @apply grid h-5 w-5 shrink-0 place-items-center rounded-md bg-white/6 text-[9px] font-black text-slate-400 transition;
+        @apply grid h-6 w-6 shrink-0 place-items-center rounded-md bg-white/5 text-slate-400 transition;
     }
+    .nav-glyph svg { @apply h-[15px] w-[15px]; }
     .nav-link:hover .nav-glyph { @apply bg-white/10 text-white; }
     .nav-link.active {
         @apply bg-[#2bb673] text-white shadow-md shadow-emerald-950/25;
@@ -68,13 +69,18 @@
     .header-title { @apply min-w-0 flex-1; }
     .header-title h1 { @apply mt-0.5 truncate text-lg font-extrabold tracking-tight text-slate-900 lg:text-xl; }
     .eyebrow { @apply text-[10px] font-bold text-slate-400; }
-    .mobile-menu { @apply grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-slate-200 bg-white text-base text-slate-600 lg:hidden; }
+    .mobile-menu { @apply grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-slate-200 bg-white text-slate-600 lg:hidden; }
+    .mobile-menu svg { @apply h-4 w-4; }
     .global-search {
         @apply hidden h-10 w-full max-w-sm items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 text-slate-400 xl:flex;
     }
     .global-search input { @apply w-full border-0 bg-transparent text-xs text-slate-700 outline-none placeholder:text-slate-400; }
     .header-actions { @apply flex items-center gap-2; }
+    .store-switch-form { @apply hidden lg:block; }
+    .store-switch { @apply max-w-44 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] font-bold text-emerald-800 outline-none focus:border-emerald-500 focus:ring-emerald-500; }
+    .store-label { @apply hidden max-w-40 truncate rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2 text-[11px] font-bold text-emerald-800 lg:inline-block; }
     .header-icon-btn { @apply relative grid h-9 w-9 place-items-center rounded-lg border border-slate-200 bg-white text-sm text-slate-500 transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700; }
+    .header-icon-btn svg, .logout-btn svg { @apply h-4 w-4; }
     .notification-pip { @apply absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-rose-500 ring-2 ring-white; }
     .header-user { @apply hidden items-center gap-2 border-l border-slate-200 pl-3 sm:flex; }
     .header-user b { @apply block text-xs font-bold text-slate-800; }
@@ -102,6 +108,16 @@
     .dashboard-welcome p { @apply mt-1 text-xs text-slate-500; }
     .dashboard-filters { @apply flex flex-wrap gap-2; }
     .filter-pill { @apply inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold text-slate-600 shadow-sm; }
+    .stock-alert { @apply mt-5 grid gap-4 rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-4 shadow-sm xl:grid-cols-[minmax(230px,.8fr)_minmax(0,2fr)_auto] xl:items-center; }
+    .stock-alert-title { @apply flex items-start gap-3; }
+    .stock-alert-icon { @apply grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-amber-100 text-amber-700; }
+    .stock-alert-icon svg { @apply h-5 w-5; }
+    .stock-alert-title h3 { @apply text-sm font-extrabold text-amber-950; }
+    .stock-alert-title p { @apply mt-0.5 text-[11px] leading-5 text-amber-800; }
+    .stock-alert-list { @apply flex flex-wrap gap-2; }
+    .stock-alert-product { @apply inline-flex items-center gap-2 rounded-lg border border-amber-200/80 bg-white/80 px-3 py-2 text-[11px] font-semibold text-slate-700 no-underline transition hover:border-amber-400 hover:bg-white; }
+    .stock-alert-product b { @apply max-w-32 truncate text-amber-900; }
+    .stock-alert-product span { @apply rounded-md bg-rose-50 px-1.5 py-0.5 text-[10px] font-black text-rose-600; }
 
     .metric-card { @apply relative min-h-[148px] overflow-hidden rounded-xl border p-4 shadow-[0_3px_12px_rgba(15,23,42,.035)]; }
     .metric-card::after { content: ''; @apply absolute -right-7 -top-8 h-24 w-24 rounded-full bg-white/35; }

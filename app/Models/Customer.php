@@ -6,7 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class Customer extends Model
 {
-    protected $fillable = ['member_code', 'name', 'phone', 'address', 'points', 'is_active'];
+    protected $fillable = ['store_id', 'member_code', 'name', 'phone', 'address', 'points', 'is_active'];
     protected function casts(): array { return ['points' => 'integer', 'is_active' => 'boolean']; }
     public function sales() { return $this->hasMany(Sale::class); }
+    public function store() { return $this->belongsTo(Store::class); }
 }

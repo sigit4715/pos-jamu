@@ -1,1 +1,22 @@
-<?php namespace App\Models; use Illuminate\Database\Eloquent\Model; class Purchase extends Model { protected $fillable=['number','supplier_id','user_id','total','payment_status','due_date','paid_amount','notes']; protected function casts():array{return ['total'=>'decimal:2','paid_amount'=>'decimal:2','due_date'=>'date'];} public function items(){return $this->hasMany(PurchaseItem::class);} public function supplier(){return $this->belongsTo(Supplier::class);} public function user(){return $this->belongsTo(User::class);} public function payments(){return $this->hasMany(SupplierPayment::class);} public function getOutstandingAttribute():float{return max(0,(float)$this->total-(float)$this->paid_amount);}}
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+
+class Purchase extends Model
+{
+    protected $fillable = ['store_id', 'number', 'supplier_id', 'user_id', 'total', 'payment_status', 'due_date', 'paid_amount', 'notes'];
+
+    protected function casts(): array
+    {
+        return ['total' => 'decimal:2', 'paid_amount' => 'decimal:2', 'due_date' => 'date'];
+    }
+
+    public function items() { return $this->hasMany(PurchaseItem::class); }
+    public function supplier() { return $this->belongsTo(Supplier::class); }
+    public function user() { return $this->belongsTo(User::class); }
+    public function store() { return $this->belongsTo(Store::class); }
+    public function payments() { return $this->hasMany(SupplierPayment::class); }
+    public function getOutstandingAttribute(): float { return max(0, (float) $this->total - (float) $this->paid_amount); }
+}

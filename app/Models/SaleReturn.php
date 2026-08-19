@@ -1,1 +1,1 @@
-<?php namespace App\Models; use Illuminate\Database\Eloquent\Model; class SaleReturn extends Model { protected $fillable=['number','sale_id','user_id','total','reason']; public function items(){return $this->hasMany(SaleReturnItem::class);} }
+<?php namespace App\Models; use Illuminate\Database\Eloquent\Model; class SaleReturn extends Model { protected $fillable=['store_id','number','sale_id','user_id','total','reason']; public function store(){return $this->belongsTo(Store::class);} public function items(){return $this->hasMany(SaleReturnItem::class);} }

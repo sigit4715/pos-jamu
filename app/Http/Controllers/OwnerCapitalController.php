@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\OwnerCapitalTransaction;
 use App\Services\AuditService;
+use App\Services\StoreContext;
 use Illuminate\Http\Request;
 
 class OwnerCapitalController extends Controller
@@ -12,7 +13,7 @@ class OwnerCapitalController extends Controller
     {
         $from = $request->input('from', now()->startOfMonth()->toDateString());
         $to = $request->input('to', now()->toDateString());
-        $query = OwnerCapitalTransaction::with('user')
+        $query = OwnerCapitalTransaction::where('store_id', $this->storeId())->with('user')
             ->whereBetween('occurred_at', ["{$from} 00:00:00", "{$to} 23:59:59"]);
         $capitalIn = (float) (clone $query)->where('type', 'capital_in')->sum('amount');
         $withdrawal = (float) (clone $query)->where('type', 'capital_withdrawal')->sum('amount');
@@ -37,10 +38,12 @@ class OwnerCapitalController extends Controller
 
         $transaction = OwnerCapitalTransaction::create([
             ...$data,
+            'store_id' => $this->storeId(),
             'user_id' => auth()->id(),
         ]);
         AuditService::log('owner_capital.created', $transaction, 'Transaksi modal pemilik dicatat', ['type' => $data['type'], 'amount' => $data['amount']]);
 
         return back()->with('success', 'Transaksi modal pemilik berhasil dicatat.');
     }
+    private function storeId(): int { return app(StoreContext::class)->id(); }
 }

@@ -11,6 +11,7 @@ class AuditService
     {
         ActivityLog::create([
             'user_id' => auth()->id(),
+            'store_id' => auth()->check() ? app(StoreContext::class)->id() : null,
             'action' => $action,
             'subject_type' => $subject ? $subject::class : null,
             'subject_id' => $subject?->getKey(),

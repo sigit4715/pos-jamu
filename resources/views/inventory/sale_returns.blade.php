@@ -28,7 +28,7 @@
                             <input type="checkbox" name="sale_item_id[]" value="{{ $item->id }}" class="mt-1">
                             <div class="min-w-[180px] flex-1">
                                 <b>{{ $item->product_name }}</b>
-                                <small class="block text-slate-500">Terjual {{ $item->quantity }} · Sisa retur {{ $remaining }} · Rp {{ number_format($item->price, 0, ',', '.') }}/item</small>
+                                <small class="block text-slate-500">Terjual {{ $item->quantity }} {{ $item->unit_name ?: 'pcs' }} &middot; Sisa retur {{ $remaining }} {{ $item->unit_name ?: 'pcs' }} &middot; Rp {{ number_format($item->price, 0, ',', '.') }}/{{ $item->unit_name ?: 'pcs' }}</small>
                             </div>
                             <label class="text-xs text-slate-500">Jumlah
                                 <input class="input mt-1 w-24" name="quantity[{{ $item->id }}]" type="number" min="0" max="{{ $remaining }}" value="0">

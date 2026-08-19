@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class OwnerCapitalTransaction extends Model
 {
-    protected $fillable = ['user_id', 'type', 'amount', 'description', 'occurred_at'];
+    protected $fillable = ['store_id', 'user_id', 'type', 'amount', 'description', 'occurred_at'];
 
     protected function casts(): array
     {
@@ -16,5 +16,10 @@ class OwnerCapitalTransaction extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function store()
+    {
+        return $this->belongsTo(Store::class);
     }
 }

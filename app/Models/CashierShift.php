@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class CashierShift extends Model
 {
-    protected $fillable = ['user_id', 'opened_at', 'closed_at', 'opening_cash', 'expected_cash', 'closing_cash', 'difference', 'status', 'notes'];
+    protected $fillable = ['store_id', 'user_id', 'opened_at', 'closed_at', 'opening_cash', 'expected_cash', 'closing_cash', 'difference', 'status', 'notes'];
 
     protected function casts(): array
     {
@@ -14,5 +14,6 @@ class CashierShift extends Model
     }
 
     public function user() { return $this->belongsTo(User::class); }
+    public function store() { return $this->belongsTo(Store::class); }
     public function sales() { return $this->hasMany(Sale::class, 'shift_id'); }
 }
