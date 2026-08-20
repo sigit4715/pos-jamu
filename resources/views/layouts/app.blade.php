@@ -60,6 +60,7 @@
             @endif
         </div>
     </aside>
+    <button type="button" class="mobile-nav-backdrop" data-mobile-menu-close aria-label="Tutup menu"></button>
 
     <main class="app-main">
         <header class="app-header">
