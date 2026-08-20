@@ -11,6 +11,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\MasterDataController;
 use App\Http\Controllers\MenuItemController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OutflowController;
 use App\Http\Controllers\OwnerCapitalController;
 use App\Http\Controllers\ProductController;
@@ -37,6 +38,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
     Route::get('/dashboard', DashboardController::class)->middleware('permission:dashboard.view')->name('dashboard');
+    Route::get('/notifikasi-aktivitas', [NotificationController::class, 'index'])->middleware('permission:dashboard.view')->name('notifications.index');
     Route::get('/kasir', [SaleController::class, 'create'])->middleware('permission:sales.create')->name('sales.create');
     Route::post('/kasir', [SaleController::class, 'store'])->middleware('permission:sales.create')->name('sales.store');
     Route::get('/penjualan', [SaleController::class, 'index'])->middleware('permission:sales.view')->name('sales.index');

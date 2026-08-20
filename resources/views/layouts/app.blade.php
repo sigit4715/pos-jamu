@@ -12,6 +12,8 @@
 @php($activeStore = $storeContext->store())
 @php($canSwitchStore = $currentUser->hasPermission('stores.switch'))
 @php($availableStores = $canSwitchStore ? $storeContext->stores() : collect())
+@php($notificationStoreIds = $currentUser->hasPermission('dashboard.view_all') ? $storeContext->stores()->pluck('id') : collect([$activeStore->id]))
+@php($notificationCount = \App\Models\Sale::whereIn('store_id', $notificationStoreIds)->whereDate('created_at', today())->count() + \App\Models\StockTransfer::where(fn ($query) => $query->whereIn('source_store_id', $notificationStoreIds)->orWhereIn('destination_store_id', $notificationStoreIds))->whereDate('transferred_at', today())->count())
 @php($sectionOrder = ['Menu Utama' => 10, 'Persediaan' => 20, 'Administrasi' => 30, 'Laporan' => 40, 'Ekspor Cepat' => 50])
 @php($menuGroups = \App\Models\MenuItem::with('permission')->where('is_active', true)->orderBy('sort_order')->get()->filter(fn ($menu) => $currentUser->hasPermission($menu->permission->code))->groupBy('section')->sortBy(fn ($menus, $section) => $sectionOrder[$section] ?? 99))
 <div class="app-shell">
@@ -70,9 +72,10 @@
                 @else
                     <span class="store-label">{{ $activeStore->name }}</span>
                 @endif
-                <button type="button" class="header-icon-btn" title="Notifikasi" aria-label="Notifikasi">
-                    @include('components.icon', ['name' => 'bell'])<span class="notification-pip"></span>
-                </button>
+                <a href="{{ route('notifications.index') }}" class="header-icon-btn" title="Aktivitas lokasi" aria-label="Aktivitas lokasi">
+                    @include('components.icon', ['name' => 'bell'])
+                    @if($notificationCount > 0)<span class="notification-count">{{ min($notificationCount, 99) }}</span>@endif
+                </a>
                 <div class="header-user">
                     <span class="header-avatar">{{ strtoupper(substr($currentUser->name, 0, 1)) }}</span>
                     <div><b>{{ $currentUser->name }}</b><small>{{ $currentUser->roleLabel() }}</small></div>

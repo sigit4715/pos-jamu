@@ -81,4 +81,14 @@ class DynamicAccessControlTest extends TestCase
         $admin = User::factory()->create(['role' => 'admin']);
         $this->actingAs($admin)->get(route('users.index'))->assertOk();
     }
+
+    public function test_admin_can_open_clickable_location_activity_notifications(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($admin)->get(route('notifications.index'))
+            ->assertOk()
+            ->assertSee('Aktivitas lokasi hari ini')
+            ->assertSee('Detail aktivitas');
+    }
 }

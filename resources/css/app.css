@@ -82,6 +82,7 @@
     .header-icon-btn { @apply relative grid h-9 w-9 place-items-center rounded-lg border border-slate-200 bg-white text-sm text-slate-500 transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700; }
     .header-icon-btn svg, .logout-btn svg { @apply h-4 w-4; }
     .notification-pip { @apply absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-rose-500 ring-2 ring-white; }
+    .notification-count { @apply absolute -right-1 -top-1 grid min-w-4 place-items-center rounded-full bg-rose-500 px-1 py-0.5 text-[8px] font-black leading-none text-white ring-2 ring-white; }
     .header-user { @apply hidden items-center gap-2 border-l border-slate-200 pl-3 sm:flex; }
     .header-user b { @apply block text-xs font-bold text-slate-800; }
     .logout-btn { @apply grid h-9 w-9 place-items-center rounded-lg text-base text-slate-400 transition hover:bg-rose-50 hover:text-rose-600; }
