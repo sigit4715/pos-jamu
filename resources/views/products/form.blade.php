@@ -34,7 +34,7 @@
 </form>
 
 <script>
-const rows = @json(old('packagings', $product->packagings->map(fn ($row) => ['id' => $row->id, 'name' => $row->name, 'conversion_quantity' => $row->conversion_quantity, 'price' => $row->price, 'is_active' => $row->is_active])->values()));
+const rows = @json(old('packagings', $packagingRows));
 const packagings = document.getElementById('packagings');
 let packagingIndex = 0;
 const esc = value => String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');

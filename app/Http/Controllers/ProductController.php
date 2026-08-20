@@ -64,8 +64,17 @@ class ProductController extends Controller
 
     private function formData(Product $product): array
     {
+        $product->load('packagings');
+
         return [
-            'product' => $product->load('packagings'),
+            'product' => $product,
+            'packagingRows' => $product->packagings->map(fn (ProductPackaging $packaging) => [
+                'id' => $packaging->id,
+                'name' => $packaging->name,
+                'conversion_quantity' => $packaging->conversion_quantity,
+                'price' => $packaging->price,
+                'is_active' => $packaging->is_active,
+            ])->values()->all(),
             'categories' => Category::orderBy('name')->get(),
             'units' => Unit::where('is_active', 1)->orderBy('name')->get(),
             'brands' => Brand::where('is_active', 1)->orderBy('name')->get(),

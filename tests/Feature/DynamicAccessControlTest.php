@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\AccessRole;
 use App\Models\MenuItem;
 use App\Models\Permission;
+use App\Models\Product;
 use App\Models\Store;
 use App\Models\User;
 use App\Models\UserPermissionOverride;
@@ -58,5 +59,13 @@ class DynamicAccessControlTest extends TestCase
             ->assertOk()
             ->assertDontSee('Pembelian / Barang Masuk');
         $this->actingAs($cashier)->get(route('purchases.index'))->assertOk();
+    }
+
+    public function test_product_edit_form_compiles_with_dynamic_packaging_rows(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $product = Product::create(['code' => 'FORM-01', 'name' => 'Jamu Form', 'price' => 10000, 'stock' => 2, 'unit' => 'pcs', 'is_active' => true]);
+
+        $this->actingAs($admin)->get(route('products.edit', $product))->assertOk();
     }
 }
