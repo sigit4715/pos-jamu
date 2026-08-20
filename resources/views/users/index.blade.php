@@ -5,8 +5,14 @@
 
 @section('content')
     <div class="mb-5 flex items-center justify-between gap-3">
-        <p class="text-sm text-slate-500">Setiap akun memakai role yang dapat dikustomisasi, dengan pengecualian izin bila diperlukan.</p>
+        <p class="text-sm text-slate-500">Hanya Administrator yang dapat membuat atau mengubah akun login dan penugasannya.</p>
         <a class="btn-primary" href="{{ route('users.create') }}">Tambah Akun</a>
+    </div>
+
+    <div class="mb-5 grid gap-3 md:grid-cols-3">
+        <div class="rounded-xl border border-emerald-100 bg-emerald-50 p-4"><b class="block text-sm text-emerald-900">Login Toko A</b><p class="mt-1 text-xs leading-5 text-emerald-700">Buat akun dengan role Kasir, lalu tugaskan ke Toko A.</p></div>
+        <div class="rounded-xl border border-emerald-100 bg-emerald-50 p-4"><b class="block text-sm text-emerald-900">Login Toko B</b><p class="mt-1 text-xs leading-5 text-emerald-700">Buat akun dengan role Kasir, lalu tugaskan ke Toko B.</p></div>
+        <div class="rounded-xl border border-amber-100 bg-amber-50 p-4"><b class="block text-sm text-amber-900">Login Gudang</b><p class="mt-1 text-xs leading-5 text-amber-700">Buat akun dengan role Petugas Gudang, lalu tugaskan ke Gudang.</p></div>
     </div>
 
     <div class="card overflow-x-auto p-0">

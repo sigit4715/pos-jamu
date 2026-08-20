@@ -84,7 +84,7 @@ Route::middleware('auth')->group(function () {
         Route::put('/manajemen-toko/{store}', [StoreController::class, 'update'])->name('stores.update');
     });
     Route::post('/ganti-toko', [StoreController::class, 'switch'])->middleware('permission:stores.switch')->name('stores.switch');
-    Route::resource('users', UserController::class)->middleware('permission:users.manage')->except('show', 'destroy');
+    Route::resource('users', UserController::class)->middleware(['permission:users.manage', 'role:admin'])->except('show', 'destroy');
     Route::resource('roles', AccessRoleController::class)->middleware('permission:roles.manage')->except('show');
     Route::get('/pengaturan-menu', [MenuItemController::class, 'index'])->middleware('permission:menus.manage')->name('menus.index');
     Route::put('/pengaturan-menu/{menuItem}', [MenuItemController::class, 'update'])->middleware('permission:menus.manage')->name('menus.update');

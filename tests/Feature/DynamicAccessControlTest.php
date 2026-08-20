@@ -68,4 +68,17 @@ class DynamicAccessControlTest extends TestCase
 
         $this->actingAs($admin)->get(route('products.edit', $product))->assertOk();
     }
+
+    public function test_only_admin_can_manage_login_accounts_even_with_a_permission_override(): void
+    {
+        $cashier = User::factory()->create(['role' => 'kasir']);
+        $permission = Permission::where('code', 'users.manage')->firstOrFail();
+        UserPermissionOverride::create(['user_id' => $cashier->id, 'permission_id' => $permission->id, 'is_allowed' => true]);
+
+        $this->actingAs($cashier)->get(route('users.index'))->assertForbidden();
+        $this->actingAs($cashier)->get(route('users.create'))->assertForbidden();
+
+        $admin = User::factory()->create(['role' => 'admin']);
+        $this->actingAs($admin)->get(route('users.index'))->assertOk();
+    }
 }
