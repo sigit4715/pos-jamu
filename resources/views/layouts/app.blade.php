@@ -19,7 +19,7 @@
 @php($displayRoleLabel = $menuPreviewRole && $menuPreviewRole->code !== 'admin' ? 'Pratinjau '.$menuPreviewRole->name : $currentUser->roleLabel())
 @php($sectionOrder = ['Menu Utama' => 10, 'Persediaan' => 20, 'Administrasi' => 30, 'Laporan' => 40, 'Ekspor Cepat' => 50])
 @php($menuGroups = \App\Models\MenuItem::with('permission')->where('is_active', true)->orderBy('sort_order')->get()->filter(fn ($menu) => $menuPreviewRole ? $menuPreviewRole->permissions->contains('code', $menu->permission->code) : $currentUser->hasPermission($menu->permission->code))->groupBy('section')->sortBy(fn ($menus, $section) => $sectionOrder[$section] ?? 99))
-<div class="app-shell">
+<div class="app-shell" id="app-shell">
     <aside class="app-sidebar">
         <a href="{{ route('dashboard') }}" class="brand">
             <span class="brand-mark">@include('components.icon', ['name' => 'leaf', 'class' => 'h-5 w-5'])</span>
@@ -63,7 +63,7 @@
 
     <main class="app-main">
         <header class="app-header">
-            <button type="button" class="mobile-menu" aria-label="Menu">@include('components.icon', ['name' => 'menu'])</button>
+            <button type="button" class="mobile-menu" data-mobile-menu aria-label="Buka menu" aria-expanded="false">@include('components.icon', ['name' => 'menu'])</button>
             <div class="header-title">
                 <p class="eyebrow">Selamat datang kembali, {{ $currentUser->name }}</p>
                 <h1>@yield('heading', 'Dashboard')</h1>

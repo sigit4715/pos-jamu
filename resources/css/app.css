@@ -183,10 +183,25 @@
     .empty-state { @apply py-8 text-center text-sm text-slate-400; }
 
     @media (max-width: 1023px) {
-        .app-sidebar { @apply min-h-0; }
-        .sidebar-scroll { @apply flex-none; }
+        .app-sidebar { @apply min-h-0 px-3 py-3; }
+        .app-sidebar .sidebar-scroll, .app-sidebar .sidebar-footer-block { display: none; }
+        .app-shell.nav-open .sidebar-scroll { @apply mt-4 grid grid-cols-2 gap-1; }
+        .app-shell.nav-open .sidebar-footer-block { display: block; }
         .sidebar-scroll .nav-caption { @apply hidden; }
-        .sidebar-scroll { @apply grid grid-cols-2 gap-1; }
         .sidebar-scroll .nav-link { @apply text-xs; }
+        .app-header { @apply min-h-16 gap-2 px-4 py-2; }
+        .header-title .eyebrow { @apply hidden; }
+        .header-title h1 { @apply text-base; }
+        .store-switch-form { @apply block; }
+        .store-switch { @apply w-28 max-w-[32vw] px-2 py-2 text-[10px]; }
+        .header-user { @apply hidden; }
+        .app-content { @apply p-4; }
+    }
+
+    @media (max-width: 420px) {
+        .app-header { @apply px-3; }
+        .store-switch { @apply w-24; }
+        .header-icon-btn, .logout-btn, .mobile-menu { @apply h-8 w-8; }
+        .card { @apply p-4; }
     }
 }
