@@ -10,6 +10,7 @@ use App\Models\Purchase;
 use App\Models\OwnerCapitalTransaction;
 use App\Models\Sale;
 use App\Models\Store;
+use App\Models\StockTransfer;
 use App\Services\StoreContext;
 use Illuminate\Support\Facades\DB;
 
@@ -20,6 +21,7 @@ class DashboardController extends Controller
         $user = auth()->user();
         $isAdmin = $user->hasPermission('dashboard.view_all');
         $storeId = app(StoreContext::class)->id();
+        $activeStore = app(StoreContext::class)->store();
         $visibleStoreIds = $isAdmin
             ? Store::where('is_active', true)->pluck('id')
             : collect([$storeId]);
@@ -149,6 +151,9 @@ class DashboardController extends Controller
             'cashBalance' => $cashSales + $cashIncome - $cashExpense,
             'ownerCapital' => $capitalIn - $capitalWithdrawals,
             'supplierDebt' => $isAdmin ? (float) Purchase::whereIn('store_id', $visibleStoreIds)->selectRaw('COALESCE(SUM(CASE WHEN total > paid_amount THEN total - paid_amount ELSE 0 END), 0) as total')->value('total') : null,
+            'pendingTransferCount' => StockTransfer::whereIn('destination_store_id', $visibleStoreIds)->where('status', 'shipped')->count(),
+            'canSendTransfers' => $activeStore->isWarehouse() && $user->hasPermission('stock.transfer'),
+            'canReceiveTransfers' => $activeStore->type === 'store' && $user->hasPermission('stock.transfer.receive'),
             'locationSummaries' => $isAdmin ? Store::whereIn('id', $visibleStoreIds)->where('is_active', true)->orderBy('type')->orderBy('name')->get()->map(function (Store $store) {
                 return [
                     'id' => $store->id,

@@ -47,6 +47,13 @@
     </div>
 </div>
 
+<section class="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <a href="{{ route('sales.create') }}" class="card flex items-center gap-3 no-underline"><span class="stat-icon bg-emerald-100 text-emerald-700">+</span><span><b class="block text-sm text-slate-800">Transaksi Baru</b><small class="text-slate-500">Buka kasir</small></span></a>
+    <a href="{{ route('notifications.index') }}" class="card flex items-center gap-3 no-underline"><span class="stat-icon bg-sky-100 text-sky-700">!</span><span><b class="block text-sm text-slate-800">Aktivitas Lokasi</b><small class="text-slate-500">Pantau transaksi hari ini</small></span></a>
+    @if($canSendTransfers)<a href="{{ route('stock-transfers.index') }}" class="card flex items-center gap-3 no-underline"><span class="stat-icon bg-violet-100 text-violet-700">TR</span><span><b class="block text-sm text-slate-800">Kirim Transfer</b><small class="text-slate-500">Distribusi dari Gudang</small></span></a>@endif
+    @if($canReceiveTransfers)<a href="{{ route('stock-transfers.incoming') }}" class="card flex items-center gap-3 no-underline"><span class="stat-icon bg-amber-100 text-amber-700">{{ $pendingTransferCount }}</span><span><b class="block text-sm text-slate-800">Penerimaan Transfer</b><small class="text-slate-500">{{ $pendingTransferCount ? 'Perlu dikonfirmasi' : 'Tidak ada yang menunggu' }}</small></span></a>@endif
+</section>
+
 <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
     <article class="metric-card metric-green">
         <span class="metric-icon">Rp</span>

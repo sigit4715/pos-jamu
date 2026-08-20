@@ -49,6 +49,7 @@ class StockTransferController extends Controller
                 'destination_store_id' => $destination->id,
                 'user_id' => auth()->id(),
                 'notes' => $data['notes'] ?? null,
+                'status' => 'shipped',
                 'transferred_at' => now(),
             ]);
 
@@ -65,10 +66,7 @@ class StockTransferController extends Controller
 
                 $destinationProduct = $this->destinationProduct($sourceProduct, $destination, $packaging);
                 $sourceBefore = (int) $sourceProduct->stock;
-                $destinationBefore = (int) $destinationProduct->stock;
                 $sourceProduct->decrement('stock', $baseQuantity);
-                $destinationProduct->increment('stock', $baseQuantity);
-                app(BatchService::class)->transfer($sourceProduct, $destinationProduct, $baseQuantity);
 
                 $transfer->items()->create([
                     'source_product_id' => $sourceProduct->id,
@@ -95,32 +93,85 @@ class StockTransferController extends Controller
                     'reference' => $transfer->number,
                     'notes' => "Transfer ke {$destination->name}",
                 ]);
-                StockLog::create([
-                    'store_id' => $destination->id,
-                    'product_id' => $destinationProduct->id,
-                    'user_id' => auth()->id(),
-                    'type' => 'transfer_in',
-                    'quantity_change' => $baseQuantity,
-                    'transaction_quantity' => $item['quantity'],
-                    'unit_name' => $unitName,
-                    'conversion_quantity' => $conversionQuantity,
-                    'stock_before' => $destinationBefore,
-                    'stock_after' => $destinationBefore + $baseQuantity,
-                    'reference' => $transfer->number,
-                    'notes' => "Transfer dari {$sourceStore->name}",
-                ]);
             }
 
             AuditService::log('stock_transfer.created', $transfer, 'Transfer stok gudang ke toko dibuat', ['destination_store_id' => $destination->id]);
         });
 
-        return back()->with('success', 'Transfer stok berhasil diproses.');
+        return back()->with('success', 'Transfer stok dikirim dan menunggu penerimaan toko tujuan.');
+    }
+
+    public function incoming()
+    {
+        $store = $this->destinationStore();
+
+        return view('stock-transfers.incoming', [
+            'store' => $store,
+            'pendingTransfers' => StockTransfer::where('destination_store_id', $store->id)
+                ->where('status', 'shipped')
+                ->with(['sourceStore', 'user', 'items'])
+                ->latest('transferred_at')
+                ->get(),
+            'receivedTransfers' => StockTransfer::where('destination_store_id', $store->id)
+                ->where('status', 'received')
+                ->with(['sourceStore', 'user', 'items'])
+                ->latest('received_at')
+                ->take(10)
+                ->get(),
+        ]);
+    }
+
+    public function receive(StockTransfer $transfer)
+    {
+        $destination = $this->destinationStore();
+        abort_unless($transfer->destination_store_id === $destination->id, 404);
+
+        DB::transaction(function () use ($transfer, $destination) {
+            $transfer = StockTransfer::with('items')->lockForUpdate()->findOrFail($transfer->id);
+            abort_unless($transfer->status === 'shipped', 422, 'Transfer ini sudah diterima atau tidak dapat diproses.');
+
+            foreach ($transfer->items as $item) {
+                $sourceProduct = Product::where('store_id', $transfer->source_store_id)->lockForUpdate()->findOrFail($item->source_product_id);
+                $destinationProduct = Product::where('store_id', $destination->id)->lockForUpdate()->findOrFail($item->destination_product_id);
+                $before = (int) $destinationProduct->stock;
+                $destinationProduct->increment('stock', $item->base_quantity);
+                app(BatchService::class)->transfer($sourceProduct, $destinationProduct, $item->base_quantity, $transfer->source_store_id);
+
+                StockLog::create([
+                    'store_id' => $destination->id,
+                    'product_id' => $destinationProduct->id,
+                    'user_id' => auth()->id(),
+                    'type' => 'transfer_in',
+                    'quantity_change' => $item->base_quantity,
+                    'transaction_quantity' => $item->quantity,
+                    'unit_name' => $item->unit_name,
+                    'conversion_quantity' => $item->conversion_quantity,
+                    'stock_before' => $before,
+                    'stock_after' => $before + $item->base_quantity,
+                    'reference' => $transfer->number,
+                    'notes' => "Transfer diterima dari {$transfer->sourceStore?->name}",
+                ]);
+            }
+
+            $transfer->update(['status' => 'received', 'received_at' => now(), 'received_by' => auth()->id()]);
+            AuditService::log('stock_transfer.received', $transfer, 'Transfer stok diterima toko', ['source_store_id' => $transfer->source_store_id]);
+        });
+
+        return back()->with('success', 'Transfer berhasil diterima. Stok toko telah diperbarui.');
     }
 
     private function warehouse(): Store
     {
         $store = app(StoreContext::class)->store();
         abort_unless($store->isWarehouse(), 403, 'Pilih lokasi Gudang terlebih dahulu untuk melakukan transfer stok.');
+
+        return $store;
+    }
+
+    private function destinationStore(): Store
+    {
+        $store = app(StoreContext::class)->store();
+        abort_unless($store->type === 'store', 403, 'Pilih lokasi Toko terlebih dahulu untuk menerima transfer.');
 
         return $store;
     }

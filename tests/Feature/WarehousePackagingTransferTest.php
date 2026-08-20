@@ -56,7 +56,8 @@ class WarehousePackagingTransferTest extends TestCase
 
         $destinationProduct = Product::where('store_id', $store->id)->where('code', $product->code)->firstOrFail();
         $this->assertSame(24, $product->fresh()->stock);
-        $this->assertSame(24, $destinationProduct->stock);
+        $this->assertSame(0, $destinationProduct->stock);
+        $this->assertDatabaseHas('stock_transfers', ['status' => 'shipped']);
         $this->assertDatabaseHas('stock_transfer_items', [
             'source_product_id' => $product->id,
             'destination_product_id' => $destinationProduct->id,
@@ -72,7 +73,7 @@ class WarehousePackagingTransferTest extends TestCase
             'transaction_quantity' => 1,
             'unit_name' => 'karton',
         ]);
-        $this->assertDatabaseHas('stock_logs', [
+        $this->assertDatabaseMissing('stock_logs', [
             'store_id' => $store->id,
             'product_id' => $destinationProduct->id,
             'type' => 'transfer_in',
@@ -80,6 +81,13 @@ class WarehousePackagingTransferTest extends TestCase
             'transaction_quantity' => 1,
             'unit_name' => 'karton',
         ]);
+
+        $cashier = User::factory()->create(['role' => 'kasir', 'store_id' => $store->id]);
+        $transfer = \App\Models\StockTransfer::firstOrFail();
+        $this->actingAs($cashier)->post(route('stock-transfers.receive', $transfer))->assertRedirect();
+        $this->assertSame(24, $destinationProduct->fresh()->stock);
+        $this->assertDatabaseHas('stock_transfers', ['id' => $transfer->id, 'status' => 'received', 'received_by' => $cashier->id]);
+        $this->assertDatabaseHas('stock_logs', ['store_id' => $store->id, 'product_id' => $destinationProduct->id, 'type' => 'transfer_in', 'quantity_change' => 24]);
 
         $this->actingAs($warehouseUser)->post(route('sales.store'), [
             'payment_method' => 'cash',

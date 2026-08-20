@@ -41,10 +41,10 @@ class BatchService
         else $this->receive($product, $quantity, (float) $product->buy_price, 'RETUR-' . now()->format('YmdHis'));
     }
 
-    public function transfer(Product $source, Product $destination, int $quantity): void
+    public function transfer(Product $source, Product $destination, int $quantity, ?int $sourceStoreId = null): void
     {
         $remaining = $quantity;
-        $sourceStoreId = app(StoreContext::class)->id();
+        $sourceStoreId ??= app(StoreContext::class)->id();
         $batches = ProductBatch::where('store_id', $sourceStoreId)
             ->where('product_id', $source->id)
             ->where('remaining_quantity', '>', 0)

@@ -17,7 +17,7 @@
 @php($menuPreviewRoleCode = $currentUser->isAdmin() ? session('menu_preview_role', 'admin') : null)
 @php($menuPreviewRole = $menuPreviewRoleCode ? \App\Models\AccessRole::with('permissions')->where('code', $menuPreviewRoleCode)->first() : null)
 @php($displayRoleLabel = $menuPreviewRole && $menuPreviewRole->code !== 'admin' ? 'Pratinjau '.$menuPreviewRole->name : $currentUser->roleLabel())
-@php($sectionOrder = ['Menu Utama' => 10, 'Persediaan' => 20, 'Administrasi' => 30, 'Laporan' => 40, 'Ekspor Cepat' => 50])
+@php($sectionOrder = ['Operasional' => 10, 'Persediaan' => 20, 'Keuangan' => 30, 'Pengaturan Lanjutan' => 40, 'Ekspor Cepat' => 50])
 @php($menuGroups = \App\Models\MenuItem::with('permission')->where('is_active', true)->orderBy('sort_order')->get()->filter(fn ($menu) => $menuPreviewRole ? $menuPreviewRole->permissions->contains('code', $menu->permission->code) : $currentUser->hasPermission($menu->permission->code))->groupBy('section')->sortBy(fn ($menus, $section) => $sectionOrder[$section] ?? 99))
 <div class="app-shell" id="app-shell">
     <aside class="app-sidebar">
@@ -30,12 +30,11 @@
 
         <nav class="sidebar-scroll">
             @foreach($menuGroups as $section => $menus)
-                <p class="nav-caption">{{ $section }}</p>
-                @foreach($menus as $menu)
-                    <a class="nav-link {{ request()->routeIs($menu->route_pattern ?: $menu->route_name) ? 'active' : '' }}" href="{{ route($menu->route_name) }}">
-                        <span class="nav-glyph">@include('components.icon', ['name' => $menu->icon])</span>{{ $menu->name }}
-                    </a>
-                @endforeach
+                @if($section === 'Pengaturan Lanjutan')
+                    <details class="sidebar-advanced" {{ $menus->contains(fn ($menu) => request()->routeIs($menu->route_pattern ?: $menu->route_name)) ? 'open' : '' }}><summary>{{ $section }}</summary><div class="mt-1">@foreach($menus as $menu)<a class="nav-link {{ request()->routeIs($menu->route_pattern ?: $menu->route_name) ? 'active' : '' }}" href="{{ route($menu->route_name) }}"><span class="nav-glyph">@include('components.icon', ['name' => $menu->icon])</span>{{ $menu->name }}</a>@endforeach</div></details>
+                @else
+                    <p class="nav-caption">{{ $section }}</p>@foreach($menus as $menu)<a class="nav-link {{ request()->routeIs($menu->route_pattern ?: $menu->route_name) ? 'active' : '' }}" href="{{ route($menu->route_name) }}"><span class="nav-glyph">@include('components.icon', ['name' => $menu->icon])</span>{{ $menu->name }}</a>@endforeach
+                @endif
             @endforeach
         </nav>
 

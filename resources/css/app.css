@@ -45,6 +45,8 @@
     }
     .status-dot { @apply h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_0_4px_rgba(52,211,153,.10)]; }
     .nav-caption { @apply px-3 pt-4 text-[9px] font-black uppercase tracking-[.16em] text-slate-500; }
+    .sidebar-advanced { @apply mt-4; }
+    .sidebar-advanced summary { @apply cursor-pointer px-3 text-[9px] font-black uppercase tracking-[.16em] text-slate-500; }
     .nav-link {
         @apply flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-semibold text-slate-300 no-underline transition duration-150 hover:bg-white/7 hover:text-white;
     }
@@ -181,6 +183,11 @@
     .dashboard-table tr:last-child td { @apply border-b-0; }
     .dashboard-table a { @apply font-bold text-slate-700 no-underline hover:text-emerald-600; }
     .payment-badge { @apply inline-flex rounded-md bg-slate-100 px-2 py-1 text-[9px] font-bold text-slate-500; }
+    .status-badge { @apply inline-flex rounded-full px-2.5 py-1 text-[10px] font-extrabold; }
+    .status-success { @apply bg-emerald-100 text-emerald-700; }
+    .status-waiting { @apply bg-amber-100 text-amber-700; }
+    .status-problem { @apply bg-rose-100 text-rose-700; }
+    .transfer-detail summary { @apply cursor-pointer text-[11px] font-bold text-emerald-600; }
     .empty-state { @apply py-8 text-center text-sm text-slate-400; }
 
     @media (max-width: 1023px) {

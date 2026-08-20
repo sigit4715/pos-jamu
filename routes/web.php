@@ -76,6 +76,10 @@ Route::middleware('auth')->group(function () {
         Route::get('/transfer-stok', [StockTransferController::class, 'index'])->name('stock-transfers.index');
         Route::post('/transfer-stok', [StockTransferController::class, 'store'])->name('stock-transfers.store');
     });
+    Route::middleware('permission:stock.transfer.receive')->group(function () {
+        Route::get('/penerimaan-transfer', [StockTransferController::class, 'incoming'])->name('stock-transfers.incoming');
+        Route::post('/penerimaan-transfer/{transfer}', [StockTransferController::class, 'receive'])->name('stock-transfers.receive');
+    });
     Route::middleware('permission:purchase_returns.manage')->group(function () {
         Route::get('/retur-pembelian', [InventoryController::class, 'purchaseReturns'])->name('purchase-returns.index');
         Route::post('/retur-pembelian', [InventoryController::class, 'storePurchaseReturn'])->name('purchase-returns.store');
