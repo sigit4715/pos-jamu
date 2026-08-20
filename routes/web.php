@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AccessRoleController;
+use App\Http\Controllers\AdminMenuPreviewController;
 use App\Http\Controllers\AuditController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BatchController;
@@ -86,6 +87,7 @@ Route::middleware('auth')->group(function () {
         Route::put('/manajemen-toko/{store}', [StoreController::class, 'update'])->name('stores.update');
     });
     Route::post('/ganti-toko', [StoreController::class, 'switch'])->middleware('permission:stores.switch')->name('stores.switch');
+    Route::post('/ganti-tampilan-menu', [AdminMenuPreviewController::class, 'update'])->middleware('permission:dashboard.view_all')->name('admin.menu-preview.update');
     Route::resource('users', UserController::class)->middleware(['permission:users.manage', 'role:admin'])->except('show', 'destroy');
     Route::resource('roles', AccessRoleController::class)->middleware('permission:roles.manage')->except('show');
     Route::get('/pengaturan-menu', [MenuItemController::class, 'index'])->middleware('permission:menus.manage')->name('menus.index');

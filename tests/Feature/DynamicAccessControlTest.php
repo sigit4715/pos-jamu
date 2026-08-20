@@ -91,4 +91,18 @@ class DynamicAccessControlTest extends TestCase
             ->assertSee('Aktivitas lokasi hari ini')
             ->assertSee('Detail aktivitas');
     }
+
+    public function test_admin_can_preview_cashier_menu_without_logging_out(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($admin)->post(route('admin.menu-preview.update'), ['role' => 'kasir'])
+            ->assertRedirect()
+            ->assertSessionHas('menu_preview_role', 'kasir');
+
+        $this->actingAs($admin)->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('Pratinjau Kasir')
+            ->assertDontSee('Manajemen Toko');
+    }
 }
