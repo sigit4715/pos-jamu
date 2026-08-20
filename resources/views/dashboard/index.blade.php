@@ -78,6 +78,41 @@
     </article>
 </div>
 
+@if($locationSummaries->isNotEmpty())
+    <section class="mt-5 card">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+                <h3 class="panel-title">Ringkasan per Lokasi</h3>
+                <p class="panel-subtitle">Admin melihat Toko A, Toko B, dan Gudang dalam satu dashboard.</p>
+            </div>
+            <span class="filter-pill">{{ $locationSummaries->count() }} lokasi aktif</span>
+        </div>
+        <div class="mt-4 grid gap-3 md:grid-cols-3">
+            @foreach($locationSummaries as $location)
+                <article class="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <p class="text-sm font-extrabold text-slate-800">{{ $location['name'] }}</p>
+                            <p class="mt-1 text-[10px] font-bold uppercase tracking-wide {{ $location['type'] === 'warehouse' ? 'text-amber-600' : 'text-emerald-600' }}">{{ $location['type'] === 'warehouse' ? 'Gudang' : 'Toko' }}</p>
+                        </div>
+                        <form method="POST" action="{{ route('stores.switch') }}">
+                            @csrf
+                            <input type="hidden" name="store_id" value="{{ $location['id'] }}">
+                            <button type="submit" class="panel-link">Buka</button>
+                        </form>
+                    </div>
+                    <div class="mt-4 grid grid-cols-2 gap-3 border-t border-slate-200 pt-3 text-xs">
+                        <div><p class="text-slate-400">Omzet hari ini</p><b class="mt-1 block text-slate-700">Rp {{ number_format($location['sales_today'], 0, ',', '.') }}</b></div>
+                        <div><p class="text-slate-400">Transaksi</p><b class="mt-1 block text-slate-700">{{ number_format($location['transactions_today']) }}</b></div>
+                        <div><p class="text-slate-400">Nilai stok</p><b class="mt-1 block text-slate-700">Rp {{ number_format($location['stock_value'], 0, ',', '.') }}</b></div>
+                        <div><p class="text-slate-400">Unit stok</p><b class="mt-1 block text-slate-700">{{ number_format($location['stock_units']) }}</b></div>
+                    </div>
+                </article>
+            @endforeach
+        </div>
+    </section>
+@endif
+
 @if($lowStockCount > 0)
     <section class="stock-alert" id="peringatan-stok">
         <div class="stock-alert-title">

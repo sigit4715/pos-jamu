@@ -9,6 +9,7 @@ use App\Models\ProductBatch;
 use App\Models\Purchase;
 use App\Models\OwnerCapitalTransaction;
 use App\Models\Sale;
+use App\Models\Store;
 use App\Services\StoreContext;
 use Illuminate\Support\Facades\DB;
 
@@ -19,11 +20,17 @@ class DashboardController extends Controller
         $user = auth()->user();
         $isAdmin = $user->hasPermission('dashboard.view_all');
         $storeId = app(StoreContext::class)->id();
+        $visibleStoreIds = $isAdmin
+            ? Store::where('is_active', true)->pluck('id')
+            : collect([$storeId]);
         $monthStart = now()->startOfMonth();
         $monthEnd = now();
 
-        $scopeSales = function ($query) use ($isAdmin, $user, $storeId) {
-            $query->where('store_id', $storeId);
+        $scopeSales = function ($query) use ($isAdmin, $user, $storeId, $visibleStoreIds) {
+            $query->when($isAdmin,
+                fn ($query) => $query->whereIn('store_id', $visibleStoreIds),
+                fn ($query) => $query->where('store_id', $storeId),
+            );
             if (! $isAdmin) {
                 $query->where('cashier_id', $user->id);
             }
@@ -42,7 +49,7 @@ class DashboardController extends Controller
 
         $recentSales = $scopeSales(Sale::with('cashier')->latest())->take(6)->get();
 
-        $chart = collect(range(6, 0))->map(function ($offset) use ($scopeSales, $isAdmin, $user, $storeId) {
+        $chart = collect(range(6, 0))->map(function ($offset) use ($scopeSales, $isAdmin, $user, $storeId, $visibleStoreIds) {
             $date = today()->subDays($offset);
             $sales = $scopeSales(Sale::query()->whereDate('created_at', $date));
             $total = (float) (clone $sales)->sum('total');
@@ -51,7 +58,10 @@ class DashboardController extends Controller
             $profit = (float) DB::table('sale_items')
                 ->join('sales', 'sales.id', '=', 'sale_items.sale_id')
                 ->leftJoin('products', 'products.id', '=', 'sale_items.product_id')
-                ->where('sales.store_id', $storeId)
+                ->when($isAdmin,
+                    fn ($query) => $query->whereIn('sales.store_id', $visibleStoreIds),
+                    fn ($query) => $query->where('sales.store_id', $storeId),
+                )
                 ->whereDate('sales.created_at', $date)
                 ->when(! $isAdmin, fn ($query) => $query->where('sales.cashier_id', $user->id))
                 ->selectRaw('COALESCE(SUM(sale_items.subtotal - (COALESCE(products.buy_price, 0) * COALESCE(NULLIF(sale_items.base_quantity, 0), sale_items.quantity))), 0) as total')
@@ -80,7 +90,10 @@ class DashboardController extends Controller
             ->join('sales', 'sales.id', '=', 'sale_items.sale_id')
             ->leftJoin('products', 'products.id', '=', 'sale_items.product_id')
             ->leftJoin('categories', 'categories.id', '=', 'products.category_id')
-            ->where('sales.store_id', $storeId)
+            ->when($isAdmin,
+                fn ($query) => $query->whereIn('sales.store_id', $visibleStoreIds),
+                fn ($query) => $query->where('sales.store_id', $storeId),
+            )
             ->whereBetween('sales.created_at', [$monthStart, $monthEnd])
             ->when(! $isAdmin, fn ($query) => $query->where('sales.cashier_id', $user->id))
             ->selectRaw("COALESCE(categories.name, 'Lainnya') as name, SUM(sale_items.subtotal) as total")
@@ -92,7 +105,10 @@ class DashboardController extends Controller
 
         $topProducts = DB::table('sale_items')
             ->join('sales', 'sales.id', '=', 'sale_items.sale_id')
-            ->where('sales.store_id', $storeId)
+            ->when($isAdmin,
+                fn ($query) => $query->whereIn('sales.store_id', $visibleStoreIds),
+                fn ($query) => $query->where('sales.store_id', $storeId),
+            )
             ->when(! $isAdmin, fn ($query) => $query->where('sales.cashier_id', $user->id))
             ->whereBetween('sales.created_at', [$monthStart, $monthEnd])
             ->select('sale_items.product_name', DB::raw('SUM(COALESCE(NULLIF(sale_items.base_quantity, 0), sale_items.quantity)) as qty'))
@@ -101,18 +117,23 @@ class DashboardController extends Controller
             ->limit(5)
             ->get();
 
-        $cashTransactions = CashTransaction::where('store_id', $storeId)->whereBetween('occurred_at', [$monthStart, $monthEnd]);
+        $cashTransactions = CashTransaction::query()
+            ->when($isAdmin,
+                fn ($query) => $query->whereIn('store_id', $visibleStoreIds),
+                fn ($query) => $query->where('store_id', $storeId),
+            )
+            ->whereBetween('occurred_at', [$monthStart, $monthEnd]);
         if (! $isAdmin) {
             $cashTransactions->where('user_id', $user->id);
         }
         $cashIncome = (float) (clone $cashTransactions)->where('type', 'income')->sum('amount');
         $cashExpense = (float) (clone $cashTransactions)->where('type', 'expense')->sum('amount');
         $cashSales = (float) (clone $monthSales)->where('payment_method', 'cash')->sum('total');
-        $capitalIn = (float) OwnerCapitalTransaction::where('store_id', $storeId)->where('type', 'capital_in')->sum('amount');
-        $capitalWithdrawals = (float) OwnerCapitalTransaction::where('store_id', $storeId)->where('type', 'capital_withdrawal')->sum('amount');
-        $lowStockQuery = Product::where('store_id', $storeId)->where('is_active', true)->whereColumn('stock', '<=', 'minimum_stock')->orderBy('stock');
+        $capitalIn = (float) OwnerCapitalTransaction::whereIn('store_id', $visibleStoreIds)->where('type', 'capital_in')->sum('amount');
+        $capitalWithdrawals = (float) OwnerCapitalTransaction::whereIn('store_id', $visibleStoreIds)->where('type', 'capital_withdrawal')->sum('amount');
+        $lowStockQuery = Product::whereIn('store_id', $visibleStoreIds)->where('is_active', true)->whereColumn('stock', '<=', 'minimum_stock')->orderBy('stock');
         $expiryAlertQuery = ProductBatch::with('product')
-            ->where('store_id', $storeId)
+            ->whereIn('store_id', $visibleStoreIds)
             ->where('remaining_quantity', '>', 0)
             ->whereNotNull('expires_at')
             ->whereBetween('expires_at', [today(), today()->addDays(30)])
@@ -123,11 +144,22 @@ class DashboardController extends Controller
             'transactionsToday' => $transactionsToday,
             'grossProfitToday' => $grossProfitToday,
             'soldProductsToday' => $soldProductsToday,
-            'productCount' => Product::where('store_id', $storeId)->where('is_active', true)->count(),
-            'stockValue' => (float) Product::where('store_id', $storeId)->where('is_active', true)->selectRaw('COALESCE(SUM(stock * buy_price), 0) as total')->value('total'),
+            'productCount' => Product::whereIn('store_id', $visibleStoreIds)->where('is_active', true)->count(),
+            'stockValue' => (float) Product::whereIn('store_id', $visibleStoreIds)->where('is_active', true)->selectRaw('COALESCE(SUM(stock * buy_price), 0) as total')->value('total'),
             'cashBalance' => $cashSales + $cashIncome - $cashExpense,
             'ownerCapital' => $capitalIn - $capitalWithdrawals,
-            'supplierDebt' => $isAdmin ? (float) Purchase::where('store_id', $storeId)->selectRaw('COALESCE(SUM(CASE WHEN total > paid_amount THEN total - paid_amount ELSE 0 END), 0) as total')->value('total') : null,
+            'supplierDebt' => $isAdmin ? (float) Purchase::whereIn('store_id', $visibleStoreIds)->selectRaw('COALESCE(SUM(CASE WHEN total > paid_amount THEN total - paid_amount ELSE 0 END), 0) as total')->value('total') : null,
+            'locationSummaries' => $isAdmin ? Store::whereIn('id', $visibleStoreIds)->where('is_active', true)->orderBy('type')->orderBy('name')->get()->map(function (Store $store) {
+                return [
+                    'id' => $store->id,
+                    'name' => $store->name,
+                    'type' => $store->type,
+                    'sales_today' => (float) Sale::where('store_id', $store->id)->whereDate('created_at', today())->sum('total'),
+                    'transactions_today' => Sale::where('store_id', $store->id)->whereDate('created_at', today())->count(),
+                    'stock_value' => (float) Product::where('store_id', $store->id)->where('is_active', true)->selectRaw('COALESCE(SUM(stock * buy_price), 0) as total')->value('total'),
+                    'stock_units' => (int) Product::where('store_id', $store->id)->where('is_active', true)->sum('stock'),
+                ];
+            }) : collect(),
             'lowStockCount' => (clone $lowStockQuery)->count(),
             'lowStock' => $lowStockQuery->limit(5)->get(),
             'expiryAlertCount' => (clone $expiryAlertQuery)->count(),
