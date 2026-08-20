@@ -5,7 +5,7 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.platypus import BaseDocTemplate, Frame, PageBreak, Paragraph, Spacer, Table, TableStyle
+from reportlab.platypus import BaseDocTemplate, Frame, Flowable, PageBreak, Paragraph, Spacer, Table, TableStyle
 
 OUTPUT = 'output/pdf/Buku_Panduan_POS_Toko_Iwan_Jamu.pdf'
 
@@ -54,6 +54,41 @@ def table(headers, rows, widths=None):
     ]))
     return t
 
+class MockScreen(Flowable):
+    """Compact UI illustration used when a live browser screenshot is unavailable."""
+    def __init__(self, kind, width=17.6*cm, height=5.8*cm):
+        Flowable.__init__(self)
+        self.kind, self.width, self.height = kind, width, height
+    def draw(self):
+        c = self.canv
+        x, y, w, h = 0, 0, self.width, self.height
+        c.setFillColor(colors.HexColor('#f4f7fb')); c.roundRect(x, y, w, h, 8, fill=1, stroke=0)
+        c.setFillColor(NAVY); c.roundRect(x+7, y+7, 4.25*cm, h-14, 6, fill=1, stroke=0)
+        c.setFillColor(colors.white); c.setFont('Arial-Bold', 9); c.drawString(x+18, y+h-26, 'TOKO IWAN JAMU')
+        c.setFont('Arial', 6.7)
+        for i, label in enumerate(['Dashboard', 'Operasional', 'Persediaan', 'Keuangan', 'Pengaturan Lanjutan']):
+            c.setFillColor(colors.HexColor('#d5f4e2') if i == 0 else colors.HexColor('#b8cfc6'))
+            c.drawString(x+18, y+h-49-(i*17), label)
+        bx = x+4.65*cm
+        if self.kind == 'login':
+            c.setFillColor(colors.white); c.roundRect(bx+2.5*cm, y+0.65*cm, 8.8*cm, h-1.3*cm, 8, fill=1, stroke=0)
+            c.setFillColor(NAVY); c.setFont('Arial-Bold', 13); c.drawString(bx+3.0*cm, y+h-1.5*cm, 'Masuk ke akun Anda')
+            c.setFillColor(MUTED); c.setFont('Arial', 7.5); c.drawString(bx+3.0*cm, y+h-1.95*cm, 'Email dan password digunakan untuk masuk')
+            for j, text in enumerate(['Email / Username', 'Password']):
+                yy = y+h-2.75*cm-(j*0.95*cm); c.setFillColor(MUTED); c.setFont('Arial-Bold', 7); c.drawString(bx+3.0*cm, yy+0.28*cm, text)
+                c.setStrokeColor(LINE); c.roundRect(bx+3.0*cm, yy-0.05*cm, 6.9*cm, .45*cm, 4, fill=0, stroke=1)
+            c.setFillColor(GREEN); c.roundRect(bx+3.0*cm, y+.95*cm, 6.9*cm, .55*cm, 4, fill=1, stroke=0); c.setFillColor(colors.white); c.setFont('Arial-Bold', 8); c.drawCentredString(bx+6.45*cm, y+1.15*cm, 'Masuk')
+        elif self.kind == 'dashboard':
+            c.setFillColor(NAVY); c.setFont('Arial-Bold', 12); c.drawString(bx, y+h-23, 'Dashboard Admin')
+            c.setFillColor(MUTED); c.setFont('Arial', 7); c.drawString(bx, y+h-36, 'Ringkasan lokasi dan tindakan cepat')
+            for j, (name, val, col) in enumerate([('Toko A', '12 transaksi', GREEN), ('Toko B', '8 transaksi', colors.HexColor('#3386db')), ('Gudang', '3 transfer', YELLOW)]):
+                xx = bx+j*3.95*cm; c.setFillColor(colors.white); c.roundRect(xx, y+h-2.55*cm, 3.55*cm, 1.25*cm, 6, fill=1, stroke=0); c.setFillColor(col); c.circle(xx+.25*cm, y+h-1.62*cm, .13*cm, fill=1, stroke=0); c.setFillColor(INK); c.setFont('Arial-Bold', 8); c.drawString(xx+.48*cm, y+h-1.55*cm, name); c.setFillColor(MUTED); c.setFont('Arial', 7); c.drawString(xx+.25*cm, y+h-2.0*cm, val)
+            c.setFillColor(colors.white); c.roundRect(bx, y+.55*cm, 11.8*cm, 1.25*cm, 6, fill=1, stroke=0); c.setFillColor(GREEN); c.setFont('Arial-Bold', 8); c.drawString(bx+.25*cm, y+1.35*cm, 'Tindakan cepat'); c.setFillColor(MUTED); c.setFont('Arial', 7); c.drawString(bx+.25*cm, y+1.0*cm, 'Transaksi Baru    Notifikasi Aktivitas    Penerimaan Transfer')
+        else:
+            c.setFillColor(NAVY); c.setFont('Arial-Bold', 12); c.drawString(bx, y+h-23, 'Penerimaan Transfer')
+            c.setFillColor(MUTED); c.setFont('Arial', 7); c.drawString(bx, y+h-36, 'Periksa detail sebelum stok diterima')
+            c.setFillColor(colors.white); c.roundRect(bx, y+.7*cm, 11.8*cm, 2.65*cm, 6, fill=1, stroke=0); c.setFillColor(YELLOW); c.roundRect(bx+.3*cm, y+2.7*cm, 1.2*cm, .34*cm, 4, fill=1, stroke=0); c.setFillColor(INK); c.setFont('Arial-Bold', 8); c.drawString(bx+1.75*cm, y+2.75*cm, 'TRF-20260820-01  |  Gudang ke Toko A'); c.setFillColor(MUTED); c.setFont('Arial', 7); c.drawString(bx+.3*cm, y+2.15*cm, 'Jamu Beras Kencur   1 karton (24 pcs)'); c.drawString(bx+.3*cm, y+1.8*cm, 'Jamu Temulawak   10 pcs'); c.setFillColor(GREEN); c.roundRect(bx+8.8*cm, y+1.0*cm, 2.35*cm, .55*cm, 4, fill=1, stroke=0); c.setFillColor(colors.white); c.setFont('Arial-Bold', 7); c.drawCentredString(bx+9.98*cm, y+1.2*cm, 'Terima Transfer')
+
 def footer(canvas, doc):
     canvas.saveState()
     canvas.setStrokeColor(LINE)
@@ -78,7 +113,12 @@ for item in ['1. Memulai dan keamanan akun', '2. Peran pengguna dan lokasi kerja
 story += [Spacer(1, 8), p('Alamat aplikasi: <b>https://app.tokoiwanjamu.my.id</b>', 'Callout'), PageBreak()]
 
 story += section('1. Memulai dan Keamanan Akun', 'Setiap pengguna masuk menggunakan akun masing-masing. Jangan membagikan kata sandi atau memakai akun rekan kerja.')
-story += [p('Langkah masuk', 'H2x'), bullet('Buka alamat aplikasi, masukkan email/username dan kata sandi Anda.'), bullet('Setelah berhasil masuk, periksa nama lokasi aktif di bagian profil/menu.'), bullet('Gunakan tombol keluar setelah selesai, terutama pada perangkat bersama.'), p('Keamanan penting', 'H2x'), bullet('Admin membuat dan mengubah akun melalui menu Akun Pengguna. Kasir dan Gudang tidak dapat mengubah data pengguna.'), bullet('Bila akun salah lokasi atau tidak dapat mengakses menu, hubungi Admin. Jangan menggunakan akun Admin untuk pekerjaan harian.'), p('Pada HP atau tablet', 'H2x'), bullet('Tekan tombol menu untuk membuka sidebar. Sidebar menutup kembali agar area kerja lebih luas.'), bullet('Tabel dapat digeser ke samping bila kolom tidak muat. Gunakan mode layar tegak untuk kasir dan daftar.')]
+story += [p('Tampilan login', 'H2x'), MockScreen('login'), p('Ilustrasi tampilan login aplikasi. Masukkan email dan password, lalu tekan Masuk.', 'Smallx'), p('Akun contoh untuk simulasi', 'H2x'), table(['Peran', 'Email / username', 'Password', 'Lokasi'], [
+    ['Admin', 'admin@posjamu.test', 'password', 'Semua lokasi'],
+    ['Kasir Toko A', 'tokoa@tokoiwanjamu.my.id', 'TokoA!2026', 'Toko A'],
+    ['Kasir Toko B', 'tokob@tokoiwanjamu.my.id', 'TokoB!2026', 'Toko B'],
+    ['Petugas Gudang', 'gudang@tokoiwanjamu.my.id', 'Gudang!2026', 'Gudang'],
+], [3.1*cm, 6.1*cm, 4.2*cm, 4.2*cm]), p('Catatan akun', 'Callout'), p('Akun dan password di atas adalah akun contoh untuk instalasi/demo. Setelah aplikasi mulai dipakai, Admin sebaiknya mengganti password dan membuat akun personal melalui Akun Pengguna.', 'Bodyx'), p('Langkah masuk', 'H2x'), bullet('Buka alamat aplikasi, masukkan email/username dan kata sandi Anda.'), bullet('Setelah berhasil masuk, periksa nama lokasi aktif di bagian profil/menu.'), bullet('Gunakan tombol keluar setelah selesai, terutama pada perangkat bersama.'), p('Keamanan penting', 'H2x'), bullet('Admin membuat dan mengubah akun melalui menu Akun Pengguna. Kasir dan Gudang tidak dapat mengubah data pengguna.'), bullet('Bila akun salah lokasi atau tidak dapat mengakses menu, hubungi Admin. Jangan menggunakan akun Admin untuk pekerjaan harian.'), p('Pada HP atau tablet', 'H2x'), bullet('Tekan tombol menu untuk membuka sidebar. Sidebar menutup kembali agar area kerja lebih luas.'), bullet('Tabel dapat digeser ke samping bila kolom tidak muat. Gunakan mode layar tegak untuk kasir dan daftar.')]
 story.append(PageBreak())
 
 story += section('2. Peran Pengguna dan Lokasi Kerja', 'Sistem memisahkan data menurut lokasi: Gudang, Toko A, dan Toko B.')
@@ -91,7 +131,7 @@ story += [p('Berpindah lokasi untuk Admin', 'H2x'), bullet('Klik kartu profil Ad
 story.append(PageBreak())
 
 story += section('3. Dashboard, Notifikasi, dan Tindakan Cepat', 'Dashboard dibuat ringkas untuk membantu keputusan harian.')
-story += [bullet('Kartu lokasi menampilkan ringkasan tiap Toko dan Gudang untuk Admin.'), bullet('Notifikasi Aktivitas dapat diklik untuk melihat transaksi atau perubahan stok terkait.'), bullet('Tindakan cepat Transaksi Baru membuka kasir.'), bullet('Saat lokasi aktif adalah Gudang, tindakan cepat Kirim Transfer muncul.'), bullet('Saat lokasi aktif adalah Toko, tindakan cepat Penerimaan Transfer menunjukkan jumlah yang menunggu.')]
+story += [p('Tampilan dashboard', 'H2x'), MockScreen('dashboard'), p('Ilustrasi dashboard: kartu lokasi, notifikasi, dan tindakan cepat disusun di bagian atas.', 'Smallx'), bullet('Kartu lokasi menampilkan ringkasan tiap Toko dan Gudang untuk Admin.'), bullet('Notifikasi Aktivitas dapat diklik untuk melihat transaksi atau perubahan stok terkait.'), bullet('Tindakan cepat Transaksi Baru membuka kasir.'), bullet('Saat lokasi aktif adalah Gudang, tindakan cepat Kirim Transfer muncul.'), bullet('Saat lokasi aktif adalah Toko, tindakan cepat Penerimaan Transfer menunjukkan jumlah yang menunggu.')]
 story += [p('Arti warna status', 'H2x'), table(['Warna', 'Arti', 'Contoh'], [['Hijau', 'Selesai / aman', 'Transfer diterima, stok aman'], ['Kuning', 'Menunggu tindak lanjut', 'Transfer dikirim, menunggu Toko menerima'], ['Merah', 'Masalah / perlu perhatian', 'Stok menipis atau peringatan kedaluwarsa']], [3*cm, 6.5*cm, 8.1*cm]), p('Kebiasaan yang dianjurkan', 'H2x'), bullet('Periksa notifikasi dan stok menipis pada awal shift.'), bullet('Klik angka atau kartu aktivitas bila ingin melihat rincian, bukan hanya total.')]
 story.append(PageBreak())
 
@@ -104,6 +144,7 @@ story += [p('Produk dan master data', 'H2x'), bullet('Admin mengelola Master Bar
 story.append(PageBreak())
 
 story += section('6. Transfer Gudang ke Toko', 'Transfer memiliki dua status agar stok tidak dianggap tersedia di toko sebelum barang benar-benar diterima.')
+story += [p('Tampilan penerimaan transfer', 'H2x'), MockScreen('transfer'), p('Ilustrasi halaman detail transfer dengan status Dikirim dan tombol Terima Transfer.', 'Smallx')]
 story.append(table(['Tahap', 'Pelaksana', 'Hasil'], [
     ['1. Dikirim', 'Gudang / Admin saat lokasi Gudang aktif', 'Stok Gudang berkurang. Transfer berstatus kuning Dikirim. Stok Toko belum bertambah.'],
     ['2. Diterima', 'Kasir Toko tujuan / Admin saat lokasi Toko aktif', 'Petugas memeriksa barang, lalu menekan Terima. Stok Toko bertambah dan status menjadi hijau Diterima.'],
