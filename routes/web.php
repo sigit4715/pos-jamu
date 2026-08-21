@@ -140,6 +140,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/laporan/penjualan/export', [ReportController::class, 'exportSalesCsv'])->name('reports.sales.export');
         Route::get('/laporan/penjualan/excel', [ReportController::class, 'exportSalesExcel'])->name('reports.sales.excel');
         Route::get('/laporan/penjualan/pdf', [ReportController::class, 'exportSalesPdf'])->name('reports.sales.pdf');
+        Route::get('/laporan/{report}/excel', [ReportController::class, 'exportReportExcel'])->whereIn('report', ['pembelian', 'stok', 'keuntungan', 'arus-kas', 'transfer'])->name('reports.generic.excel');
+        Route::get('/laporan/{report}/pdf', [ReportController::class, 'exportReportPdf'])->whereIn('report', ['pembelian', 'stok', 'keuntungan', 'arus-kas', 'transfer'])->name('reports.generic.pdf');
         Route::get('/laporan/pembelian/export', [ReportController::class, 'exportPurchasesCsv'])->name('reports.purchases.export');
         Route::get('/laporan/stok/export', [ReportController::class, 'exportStockCsv'])->name('reports.stock.export');
         Route::get('/laporan/keuntungan/export', [ReportController::class, 'exportProfitCsv'])->name('reports.profit.export');

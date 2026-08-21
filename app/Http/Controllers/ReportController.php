@@ -141,6 +141,35 @@ class ReportController extends Controller
         return Pdf::loadView('reports.exports.sales-pdf', compact('sales', 'from', 'to'))->setPaper('a4', 'landscape')->download("laporan-penjualan-{$from}-{$to}.pdf");
     }
 
+    public function exportReportExcel(Request $request, string $report)
+    {
+        [$title, $headers, $rows] = $this->exportRows($request, $report);
+        $book = new Spreadsheet(); $sheet = $book->getActiveSheet(); $sheet->setTitle(substr($title, 0, 30));
+        $sheet->setCellValue('A1', $title); $sheet->mergeCellsByColumnAndRow(1, 1, count($headers), 1);
+        $sheet->fromArray($headers, null, 'A3'); $sheet->fromArray($rows, null, 'A4');
+        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14); $sheet->getStyleByColumnAndRow(1, 3, count($headers), 3)->getFont()->setBold(true);
+        foreach (range(1, count($headers)) as $column) $sheet->getColumnDimensionByColumn($column)->setAutoSize(true);
+        return response()->streamDownload(function () use ($book) { (new Xlsx($book))->save('php://output'); }, "{$report}-".now()->format('Y-m-d').'.xlsx', ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']);
+    }
+
+    public function exportReportPdf(Request $request, string $report)
+    {
+        [$title, $headers, $rows] = $this->exportRows($request, $report);
+        return Pdf::loadView('reports.exports.table-pdf', compact('title', 'headers', 'rows'))->setPaper('a4', 'landscape')->download("{$report}-".now()->format('Y-m-d').'.pdf');
+    }
+
+    private function exportRows(Request $request, string $report): array
+    {
+        [$from, $to] = $this->period($request); $storeId = $this->storeId();
+        return match ($report) {
+            'pembelian' => ['Laporan Pembelian', ['Nomor', 'Tanggal', 'Supplier', 'Total', 'Terbayar', 'Sisa'], Purchase::where('store_id', $storeId)->with('supplier')->whereBetween('created_at', ["{$from} 00:00:00", "{$to} 23:59:59"])->latest()->get()->map(fn ($p) => [$p->number, $p->created_at->format('Y-m-d H:i'), $p->supplier->name, $p->total, $p->paid_amount, $p->outstanding])->all()],
+            'stok' => ['Laporan Stok', ['Kode', 'Nama', 'Stok', 'Minimum', 'Harga Modal', 'Nilai Stok'], Product::where('store_id', $storeId)->where('is_active', true)->orderBy('name')->get()->map(fn ($p) => [$p->code, $p->name, $p->stock, $p->minimum_stock, $p->buy_price, $p->stock * $p->buy_price])->all()],
+            'transfer' => ['Laporan Transfer', ['Nomor', 'Dari', 'Ke', 'Status', 'Tanggal'], \App\Models\StockTransfer::with(['sourceStore', 'destinationStore'])->where(fn ($q) => $q->where('source_store_id', $storeId)->orWhere('destination_store_id', $storeId))->whereBetween('transferred_at', ["{$from} 00:00:00", "{$to} 23:59:59"])->latest('transferred_at')->get()->map(fn ($t) => [$t->number, $t->sourceStore->name, $t->destinationStore->name, $t->status, $t->transferred_at->format('Y-m-d H:i')])->all()],
+            'keuntungan' => ['Laporan Keuntungan', ['Invoice', 'Tanggal', 'Omzet', 'Modal', 'Margin'], Sale::where('store_id', $storeId)->with('items.product')->whereBetween('created_at', ["{$from} 00:00:00", "{$to} 23:59:59"])->latest()->get()->map(function ($sale) { $cost = $sale->items->sum(fn ($item) => (float) ($item->product?->buy_price ?? 0) * $this->baseQuantity($item)); return [$sale->invoice_number, $sale->created_at->format('Y-m-d H:i'), $sale->total, $cost, $sale->total - $cost]; })->all()],
+            default => ['Laporan Arus Kas', ['Keterangan', 'Nilai'], [['Gunakan halaman Arus Kas untuk melihat perhitungan sesuai periode.', '']]],
+        };
+    }
+
     public function exportPurchasesCsv(Request $request)
     {
         [$from, $to] = $this->period($request);
