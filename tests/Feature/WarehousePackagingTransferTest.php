@@ -124,4 +124,23 @@ class WarehousePackagingTransferTest extends TestCase
             ->get(route('stock-transfers.index'))
             ->assertForbidden();
     }
+
+    public function test_warehouse_can_cancel_shipped_transfer_and_restore_stock(): void
+    {
+        $store = Store::query()->firstOrFail();
+        $warehouse = Store::create(['code' => 'GDG-CANCEL', 'name' => 'Gudang Cancel', 'type' => 'warehouse', 'is_active' => true]);
+        $user = User::factory()->create(['role' => 'gudang', 'store_id' => $warehouse->id]);
+        $product = Product::create(['store_id' => $warehouse->id, 'code' => 'CANCEL-01', 'name' => 'Produk Cancel', 'price' => 1000, 'buy_price' => 500, 'stock' => 10, 'minimum_stock' => 1, 'unit' => 'pcs', 'is_active' => true]);
+
+        $this->actingAs($user)->post(route('stock-transfers.store'), [
+            'destination_store_id' => $store->id,
+            'items' => [['product_id' => $product->id, 'quantity' => 3]],
+        ])->assertRedirect();
+
+        $transfer = \App\Models\StockTransfer::latest('id')->firstOrFail();
+        $this->actingAs($user)->delete(route('stock-transfers.cancel', $transfer))->assertRedirect();
+        $this->assertSame(10, $product->fresh()->stock);
+        $this->assertDatabaseHas('stock_transfers', ['id' => $transfer->id, 'status' => 'canceled']);
+        $this->assertDatabaseHas('stock_logs', ['product_id' => $product->id, 'type' => 'transfer_cancel', 'quantity_change' => 3]);
+    }
 }

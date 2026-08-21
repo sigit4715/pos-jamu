@@ -160,6 +160,36 @@ class StockTransferController extends Controller
         return back()->with('success', 'Transfer berhasil diterima. Stok toko telah diperbarui.');
     }
 
+    public function cancel(StockTransfer $transfer)
+    {
+        $sourceStore = $this->warehouse();
+        abort_unless($transfer->source_store_id === $sourceStore->id, 404);
+
+        DB::transaction(function () use ($transfer, $sourceStore) {
+            $transfer = StockTransfer::with(['items', 'destinationStore'])->lockForUpdate()->findOrFail($transfer->id);
+            abort_unless($transfer->status === 'shipped', 422, 'Transfer hanya dapat dibatalkan saat masih berstatus Dikirim.');
+
+            foreach ($transfer->items as $item) {
+                $product = Product::where('store_id', $sourceStore->id)->lockForUpdate()->findOrFail($item->source_product_id);
+                $before = (int) $product->stock;
+                $product->increment('stock', $item->base_quantity);
+                StockLog::create([
+                    'store_id' => $sourceStore->id, 'product_id' => $product->id, 'user_id' => auth()->id(),
+                    'type' => 'transfer_cancel', 'quantity_change' => $item->base_quantity,
+                    'transaction_quantity' => $item->quantity, 'unit_name' => $item->unit_name,
+                    'conversion_quantity' => $item->conversion_quantity, 'stock_before' => $before,
+                    'stock_after' => $before + $item->base_quantity, 'reference' => $transfer->number,
+                    'notes' => "Transfer ke {$transfer->destinationStore->name} dibatalkan",
+                ]);
+            }
+
+            $transfer->update(['status' => 'canceled']);
+            AuditService::log('stock_transfer.canceled', $transfer, 'Transfer stok dibatalkan dan stok gudang dikembalikan', ['destination_store_id' => $transfer->destination_store_id]);
+        });
+
+        return back()->with('success', 'Transfer dibatalkan. Stok gudang telah dikembalikan.');
+    }
+
     private function warehouse(): Store
     {
         $store = app(StoreContext::class)->store();

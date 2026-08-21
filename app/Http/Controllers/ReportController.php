@@ -85,6 +85,21 @@ class ReportController extends Controller
         return view('reports.cash-flow', compact('from', 'to', 'opening', 'sales', 'manualIncome', 'manualExpense', 'capitalIn', 'capitalWithdrawal', 'returns', 'supplierPayments', 'closing'));
     }
 
+    public function transfers(Request $request)
+    {
+        [$from, $to] = $this->period($request);
+        $storeId = $this->storeId();
+        $transfers = \App\Models\StockTransfer::with(['sourceStore', 'destinationStore', 'user', 'receiver', 'items'])
+            ->where(function ($query) use ($storeId) {
+                $query->where('source_store_id', $storeId)->orWhere('destination_store_id', $storeId);
+            })
+            ->whereBetween('transferred_at', ["{$from} 00:00:00", "{$to} 23:59:59"])
+            ->when($request->filled('status'), fn ($query) => $query->where('status', $request->status))
+            ->latest('transferred_at')->get();
+
+        return view('reports.transfers', compact('transfers', 'from', 'to'));
+    }
+
     public function exportSalesCsv(Request $request)
     {
         [$from, $to] = $this->period($request);

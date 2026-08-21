@@ -75,6 +75,7 @@ Route::middleware('auth')->group(function () {
     Route::middleware('permission:stock.transfer')->group(function () {
         Route::get('/transfer-stok', [StockTransferController::class, 'index'])->name('stock-transfers.index');
         Route::post('/transfer-stok', [StockTransferController::class, 'store'])->name('stock-transfers.store');
+        Route::delete('/transfer-stok/{transfer}', [StockTransferController::class, 'cancel'])->name('stock-transfers.cancel');
     });
     Route::middleware('permission:stock.transfer.receive')->group(function () {
         Route::get('/penerimaan-transfer', [StockTransferController::class, 'incoming'])->name('stock-transfers.incoming');
@@ -132,6 +133,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/laporan/stok', [ReportController::class, 'stock'])->name('reports.stock');
         Route::get('/laporan/keuntungan', [ReportController::class, 'profit'])->name('reports.profit');
         Route::get('/laporan/retur', [ReportController::class, 'returns'])->name('reports.returns');
+        Route::get('/laporan/transfer', [ReportController::class, 'transfers'])->name('reports.transfers');
         Route::get('/laporan/arus-kas', [ReportController::class, 'cashFlow'])->name('reports.cash-flow');
         Route::get('/laporan/penjualan/export', [ReportController::class, 'exportSalesCsv'])->name('reports.sales.export');
         Route::get('/laporan/pembelian/export', [ReportController::class, 'exportPurchasesCsv'])->name('reports.purchases.export');
