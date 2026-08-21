@@ -166,8 +166,27 @@ class ReportController extends Controller
             'stok' => ['Laporan Stok', ['Kode', 'Nama', 'Stok', 'Minimum', 'Harga Modal', 'Nilai Stok'], Product::where('store_id', $storeId)->where('is_active', true)->orderBy('name')->get()->map(fn ($p) => [$p->code, $p->name, $p->stock, $p->minimum_stock, $p->buy_price, $p->stock * $p->buy_price])->all()],
             'transfer' => ['Laporan Transfer', ['Nomor', 'Dari', 'Ke', 'Status', 'Tanggal'], \App\Models\StockTransfer::with(['sourceStore', 'destinationStore'])->where(fn ($q) => $q->where('source_store_id', $storeId)->orWhere('destination_store_id', $storeId))->whereBetween('transferred_at', ["{$from} 00:00:00", "{$to} 23:59:59"])->latest('transferred_at')->get()->map(fn ($t) => [$t->number, $t->sourceStore->name, $t->destinationStore->name, $t->status, $t->transferred_at->format('Y-m-d H:i')])->all()],
             'keuntungan' => ['Laporan Keuntungan', ['Invoice', 'Tanggal', 'Omzet', 'Modal', 'Margin'], Sale::where('store_id', $storeId)->with('items.product')->whereBetween('created_at', ["{$from} 00:00:00", "{$to} 23:59:59"])->latest()->get()->map(function ($sale) { $cost = $sale->items->sum(fn ($item) => (float) ($item->product?->buy_price ?? 0) * $this->baseQuantity($item)); return [$sale->invoice_number, $sale->created_at->format('Y-m-d H:i'), $sale->total, $cost, $sale->total - $cost]; })->all()],
-            default => ['Laporan Arus Kas', ['Keterangan', 'Nilai'], [['Gunakan halaman Arus Kas untuk melihat perhitungan sesuai periode.', '']]],
+            default => $this->cashFlowExportRows($from, $to, $storeId),
         };
+    }
+
+    private function cashFlowExportRows(string $from, string $to, int $storeId): array
+    {
+        $start = "{$from} 00:00:00"; $end = "{$to} 23:59:59";
+        $salesBefore = (float) Sale::where('store_id', $storeId)->where('payment_method', 'cash')->where('created_at', '<', $start)->sum('total');
+        $cashBefore = (float) CashTransaction::where('store_id', $storeId)->where('occurred_at', '<', $start)->selectRaw("COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE -amount END), 0) as total")->value('total');
+        $capitalBefore = (float) OwnerCapitalTransaction::where('store_id', $storeId)->where('occurred_at', '<', $start)->selectRaw("COALESCE(SUM(CASE WHEN type = 'capital_in' THEN amount ELSE -amount END), 0) as total")->value('total');
+        $returnsBefore = (float) DB::table('sale_returns as r')->join('sales as s', 's.id', '=', 'r.sale_id')->where('r.store_id', $storeId)->where('s.payment_method', 'cash')->where('r.created_at', '<', $start)->sum('r.total');
+        $opening = $salesBefore + $cashBefore + $capitalBefore - $returnsBefore;
+        $sales = (float) Sale::where('store_id', $storeId)->where('payment_method', 'cash')->whereBetween('created_at', [$start, $end])->sum('total');
+        $income = (float) CashTransaction::where('store_id', $storeId)->where('type', 'income')->whereBetween('occurred_at', [$start, $end])->sum('amount');
+        $expense = (float) CashTransaction::where('store_id', $storeId)->where('type', 'expense')->whereBetween('occurred_at', [$start, $end])->sum('amount');
+        $capitalIn = (float) OwnerCapitalTransaction::where('store_id', $storeId)->where('type', 'capital_in')->whereBetween('occurred_at', [$start, $end])->sum('amount');
+        $capitalOut = (float) OwnerCapitalTransaction::where('store_id', $storeId)->where('type', 'capital_withdrawal')->whereBetween('occurred_at', [$start, $end])->sum('amount');
+        $supplier = (float) SupplierPayment::where('store_id', $storeId)->where('method', 'cash')->whereBetween('paid_at', [$start, $end])->sum('amount');
+        $returns = (float) DB::table('sale_returns as r')->join('sales as s', 's.id', '=', 'r.sale_id')->where('r.store_id', $storeId)->where('s.payment_method', 'cash')->whereBetween('r.created_at', [$start, $end])->sum('r.total');
+        $closing = $opening + $sales + $income + $capitalIn - $expense - $capitalOut - $supplier - $returns;
+        return ['Laporan Arus Kas', ['Keterangan', 'Nilai'], [['Saldo awal', $opening], ['Penjualan tunai', $sales], ['Kas masuk', $income], ['Modal masuk', $capitalIn], ['Kas keluar', -$expense], ['Penarikan modal', -$capitalOut], ['Bayar supplier tunai', -$supplier], ['Retur tunai', -$returns], ['Saldo akhir', $closing]]];
     }
 
     public function exportPurchasesCsv(Request $request)
