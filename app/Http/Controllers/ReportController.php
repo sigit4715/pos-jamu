@@ -11,6 +11,9 @@ use App\Models\SupplierPayment;
 use App\Services\StoreContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class ReportController extends Controller
 {
@@ -110,6 +113,32 @@ class ReportController extends Controller
             foreach ($sales as $sale) fputcsv($out, [$sale->invoice_number, $sale->created_at->format('Y-m-d H:i'), $sale->cashier->name, $sale->customer_name ?: 'Umum', $sale->payment_method, $sale->subtotal, $sale->discount, $sale->total]);
             fclose($out);
         }, "laporan-penjualan-{$from}-{$to}.csv", ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    public function exportSalesExcel(Request $request)
+    {
+        [$from, $to] = $this->period($request);
+        $sales = Sale::where('store_id', $this->storeId())->with('cashier')->whereBetween('created_at', ["{$from} 00:00:00", "{$to} 23:59:59"])->latest()->get();
+        $book = new Spreadsheet();
+        $sheet = $book->getActiveSheet();
+        $sheet->setTitle('Penjualan');
+        $sheet->setCellValue('A1', 'Laporan Penjualan POS Toko Iwan Jamu');
+        $sheet->mergeCells('A1:H1');
+        $sheet->fromArray(['Invoice', 'Tanggal', 'Kasir', 'Pelanggan', 'Metode', 'Subtotal', 'Diskon', 'Total'], null, 'A3');
+        $row = 4;
+        foreach ($sales as $sale) { $sheet->fromArray([[$sale->invoice_number, $sale->created_at->format('Y-m-d H:i'), $sale->cashier->name, $sale->customer_name ?: 'Umum', $sale->payment_method, $sale->subtotal, $sale->discount, $sale->total]], null, "A{$row}"); $row++; }
+        $sheet->getStyle('A1:H1')->getFont()->setBold(true)->setSize(14);
+        $sheet->getStyle('A3:H3')->getFont()->setBold(true);
+        $sheet->getStyle("F4:H{$row}")->getNumberFormat()->setFormatCode('#,##0');
+        foreach (range('A', 'H') as $column) $sheet->getColumnDimension($column)->setAutoSize(true);
+        return response()->streamDownload(function () use ($book) { (new Xlsx($book))->save('php://output'); }, "laporan-penjualan-{$from}-{$to}.xlsx", ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']);
+    }
+
+    public function exportSalesPdf(Request $request)
+    {
+        [$from, $to] = $this->period($request);
+        $sales = Sale::where('store_id', $this->storeId())->with('cashier')->whereBetween('created_at', ["{$from} 00:00:00", "{$to} 23:59:59"])->latest()->get();
+        return Pdf::loadView('reports.exports.sales-pdf', compact('sales', 'from', 'to'))->setPaper('a4', 'landscape')->download("laporan-penjualan-{$from}-{$to}.pdf");
     }
 
     public function exportPurchasesCsv(Request $request)

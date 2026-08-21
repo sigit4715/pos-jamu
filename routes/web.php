@@ -138,6 +138,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/laporan/transfer', [ReportController::class, 'transfers'])->name('reports.transfers');
         Route::get('/laporan/arus-kas', [ReportController::class, 'cashFlow'])->name('reports.cash-flow');
         Route::get('/laporan/penjualan/export', [ReportController::class, 'exportSalesCsv'])->name('reports.sales.export');
+        Route::get('/laporan/penjualan/excel', [ReportController::class, 'exportSalesExcel'])->name('reports.sales.excel');
+        Route::get('/laporan/penjualan/pdf', [ReportController::class, 'exportSalesPdf'])->name('reports.sales.pdf');
         Route::get('/laporan/pembelian/export', [ReportController::class, 'exportPurchasesCsv'])->name('reports.purchases.export');
         Route::get('/laporan/stok/export', [ReportController::class, 'exportStockCsv'])->name('reports.stock.export');
         Route::get('/laporan/keuntungan/export', [ReportController::class, 'exportProfitCsv'])->name('reports.profit.export');
