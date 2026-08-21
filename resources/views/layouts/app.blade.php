@@ -92,10 +92,10 @@
                     @include('components.icon', ['name' => 'bell'])
                     @if($notificationCount > 0)<span class="notification-count">{{ min($notificationCount, 99) }}</span>@endif
                 </a>
-                <div class="header-user">
+                <a href="{{ route('profile.edit') }}" class="header-user no-underline" title="Profil dan password">
                     <span class="header-avatar">{{ strtoupper(substr($currentUser->name, 0, 1)) }}</span>
                     <div><b>{{ $currentUser->name }}</b><small>{{ $currentUser->roleLabel() }}</small></div>
-                </div>
+                </a>
                 <form method="POST" action="{{ route('logout') }}">
                     @csrf
                     <button class="logout-btn" title="Keluar" aria-label="Keluar">@include('components.icon', ['name' => 'logout'])</button>

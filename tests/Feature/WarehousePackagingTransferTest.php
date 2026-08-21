@@ -84,7 +84,8 @@ class WarehousePackagingTransferTest extends TestCase
 
         $cashier = User::factory()->create(['role' => 'kasir', 'store_id' => $store->id]);
         $transfer = \App\Models\StockTransfer::firstOrFail();
-        $this->actingAs($cashier)->post(route('stock-transfers.receive', $transfer))->assertRedirect();
+        $transferItem = $transfer->items()->firstOrFail();
+        $this->actingAs($cashier)->post(route('stock-transfers.receive', $transfer), ['received_quantities' => [$transferItem->id => 1]])->assertRedirect();
         $this->assertSame(24, $destinationProduct->fresh()->stock);
         $this->assertDatabaseHas('stock_transfers', ['id' => $transfer->id, 'status' => 'received', 'received_by' => $cashier->id]);
         $this->assertDatabaseHas('stock_logs', ['store_id' => $store->id, 'product_id' => $destinationProduct->id, 'type' => 'transfer_in', 'quantity_change' => 24]);
@@ -142,5 +143,24 @@ class WarehousePackagingTransferTest extends TestCase
         $this->assertSame(10, $product->fresh()->stock);
         $this->assertDatabaseHas('stock_transfers', ['id' => $transfer->id, 'status' => 'canceled']);
         $this->assertDatabaseHas('stock_logs', ['product_id' => $product->id, 'type' => 'transfer_cancel', 'quantity_change' => 3]);
+    }
+
+    public function test_store_can_record_partial_transfer_receipt(): void
+    {
+        $store = Store::query()->firstOrFail();
+        $warehouse = Store::create(['code' => 'GDG-PARTIAL', 'name' => 'Gudang Parsial', 'type' => 'warehouse', 'is_active' => true]);
+        $warehouseUser = User::factory()->create(['role' => 'gudang', 'store_id' => $warehouse->id]);
+        $cashier = User::factory()->create(['role' => 'kasir', 'store_id' => $store->id]);
+        $product = Product::create(['store_id' => $warehouse->id, 'code' => 'PARTIAL-01', 'name' => 'Produk Parsial', 'price' => 1000, 'buy_price' => 500, 'stock' => 10, 'minimum_stock' => 1, 'unit' => 'pcs', 'is_active' => true]);
+
+        $this->actingAs($warehouseUser)->post(route('stock-transfers.store'), ['destination_store_id' => $store->id, 'items' => [['product_id' => $product->id, 'quantity' => 5]]])->assertRedirect();
+        $transfer = \App\Models\StockTransfer::latest('id')->with('items')->firstOrFail();
+        $item = $transfer->items->first();
+        $this->actingAs($cashier)->post(route('stock-transfers.receive', $transfer), ['received_quantities' => [$item->id => 3], 'difference_notes' => 'Dua pcs rusak saat pengiriman'])->assertRedirect();
+
+        $destinationProduct = Product::where('store_id', $store->id)->where('code', $product->code)->firstOrFail();
+        $this->assertSame(3, $destinationProduct->stock);
+        $this->assertDatabaseHas('stock_transfers', ['id' => $transfer->id, 'status' => 'partial_received']);
+        $this->assertDatabaseHas('stock_transfer_items', ['id' => $item->id, 'received_quantity' => 3]);
     }
 }

@@ -113,7 +113,7 @@ class StockTransferController extends Controller
                 ->latest('transferred_at')
                 ->get(),
             'receivedTransfers' => StockTransfer::where('destination_store_id', $store->id)
-                ->where('status', 'received')
+                ->whereIn('status', ['received', 'partial_received'])
                 ->with(['sourceStore', 'user', 'items'])
                 ->latest('received_at')
                 ->take(10)
@@ -126,38 +126,55 @@ class StockTransferController extends Controller
         $destination = $this->destinationStore();
         abort_unless($transfer->destination_store_id === $destination->id, 404);
 
-        DB::transaction(function () use ($transfer, $destination) {
+        $data = request()->validate([
+            'received_quantities' => ['required', 'array'],
+            'received_quantities.*' => ['required', 'integer', 'min:0'],
+            'difference_notes' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        DB::transaction(function () use ($transfer, $destination, $data) {
             $transfer = StockTransfer::with('items')->lockForUpdate()->findOrFail($transfer->id);
             abort_unless($transfer->status === 'shipped', 422, 'Transfer ini sudah diterima atau tidak dapat diproses.');
 
+            $hasDifference = false;
+
             foreach ($transfer->items as $item) {
+                $receivedQuantity = (int) ($data['received_quantities'][$item->id] ?? -1);
+                if ($receivedQuantity < 0 || $receivedQuantity > $item->quantity) {
+                    throw ValidationException::withMessages(['received_quantities' => "Jumlah diterima {$item->product_name} tidak valid."]);
+                }
+                $receivedBaseQuantity = $receivedQuantity * $item->conversion_quantity;
+                $hasDifference = $hasDifference || $receivedQuantity !== $item->quantity;
                 $sourceProduct = Product::where('store_id', $transfer->source_store_id)->lockForUpdate()->findOrFail($item->source_product_id);
                 $destinationProduct = Product::where('store_id', $destination->id)->lockForUpdate()->findOrFail($item->destination_product_id);
                 $before = (int) $destinationProduct->stock;
-                $destinationProduct->increment('stock', $item->base_quantity);
-                app(BatchService::class)->transfer($sourceProduct, $destinationProduct, $item->base_quantity, $transfer->source_store_id);
+                if ($receivedBaseQuantity > 0) {
+                    $destinationProduct->increment('stock', $receivedBaseQuantity);
+                    app(BatchService::class)->transfer($sourceProduct, $destinationProduct, $receivedBaseQuantity, $transfer->source_store_id);
+                }
+                $item->update(['received_quantity' => $receivedQuantity]);
 
                 StockLog::create([
                     'store_id' => $destination->id,
                     'product_id' => $destinationProduct->id,
                     'user_id' => auth()->id(),
                     'type' => 'transfer_in',
-                    'quantity_change' => $item->base_quantity,
-                    'transaction_quantity' => $item->quantity,
+                    'quantity_change' => $receivedBaseQuantity,
+                    'transaction_quantity' => $receivedQuantity,
                     'unit_name' => $item->unit_name,
                     'conversion_quantity' => $item->conversion_quantity,
                     'stock_before' => $before,
-                    'stock_after' => $before + $item->base_quantity,
+                    'stock_after' => $before + $receivedBaseQuantity,
                     'reference' => $transfer->number,
                     'notes' => "Transfer diterima dari {$transfer->sourceStore?->name}",
                 ]);
             }
 
-            $transfer->update(['status' => 'received', 'received_at' => now(), 'received_by' => auth()->id()]);
-            AuditService::log('stock_transfer.received', $transfer, 'Transfer stok diterima toko', ['source_store_id' => $transfer->source_store_id]);
+            $transfer->update(['status' => $hasDifference ? 'partial_received' : 'received', 'notes' => filled($data['difference_notes'] ?? null) ? trim(($transfer->notes ? $transfer->notes."\n" : '').'Selisih penerimaan: '.$data['difference_notes']) : $transfer->notes, 'received_at' => now(), 'received_by' => auth()->id()]);
+            AuditService::log($hasDifference ? 'stock_transfer.partially_received' : 'stock_transfer.received', $transfer, $hasDifference ? 'Transfer stok diterima dengan selisih' : 'Transfer stok diterima toko', ['source_store_id' => $transfer->source_store_id]);
         });
 
-        return back()->with('success', 'Transfer berhasil diterima. Stok toko telah diperbarui.');
+        return back()->with('success', 'Penerimaan transfer tersimpan. Stok toko telah diperbarui sesuai jumlah fisik yang diterima.');
     }
 
     public function cancel(StockTransfer $transfer)
