@@ -105,6 +105,7 @@ Route::middleware('auth')->group(function () {
         Route::put('/master-data/{type}/{id}', [MasterDataController::class, 'update'])->name('master.update');
         Route::delete('/master-data/{type}/{id}', [MasterDataController::class, 'destroy'])->name('master.destroy');
     });
+    Route::post('/products/units', [ProductController::class, 'storeUnit'])->middleware('permission:products.manage')->name('products.units.store');
     Route::resource('products', ProductController::class)->middleware('permission:products.manage')->except('show', 'destroy');
     Route::middleware('permission:barcodes.view')->group(function () {
         Route::get('/barcode', [BarcodeController::class, 'index'])->name('barcodes.index');

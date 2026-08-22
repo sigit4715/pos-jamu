@@ -16,7 +16,7 @@
         <div><label class="label">Kategori</label><select class="input" name="category_id"><option value="">Pilih kategori</option>@foreach($categories as $row)<option value="{{ $row->id }}" @selected(old('category_id', $product->category_id) == $row->id)>{{ $row->name }}</option>@endforeach</select></div>
         <div><label class="label">Merek</label><select class="input" name="brand_id"><option value="">Pilih merek</option>@foreach($brands as $row)<option value="{{ $row->id }}" @selected(old('brand_id', $product->brand_id) == $row->id)>{{ $row->name }}</option>@endforeach</select></div>
         <div><label class="label">Supplier utama</label><select class="input" name="supplier_id"><option value="">Pilih supplier</option>@foreach($suppliers as $row)<option value="{{ $row->id }}" @selected(old('supplier_id', $product->supplier_id) == $row->id)>{{ $row->name }}</option>@endforeach</select></div>
-        <div><label class="label">Satuan dasar *</label><select class="input" id="unit_id" name="unit_id"><option value="">Pilih satuan</option>@foreach($units as $row)<option value="{{ $row->id }}" data-name="{{ $row->name }}" @selected(old('unit_id', $product->unit_id) == $row->id)>{{ $row->name }}{{ $row->symbol ? ' ('.$row->symbol.')' : '' }}</option>@endforeach</select><input type="hidden" id="unit" name="unit" value="{{ old('unit', $product->unit ?: 'pcs') }}"></div>
+        <div><div class="flex items-center justify-between gap-2"><label class="label">Satuan dasar *</label><button class="mb-2 text-xs font-bold text-emerald-700" id="add-unit" type="button">+ Satuan baru</button></div><select class="input" id="unit_id" name="unit_id"><option value="">Pilih satuan</option>@foreach($units as $row)<option value="{{ $row->id }}" data-name="{{ $row->name }}" @selected(old('unit_id', $product->unit_id) == $row->id)>{{ $row->name }}{{ $row->symbol ? ' ('.$row->symbol.')' : '' }}</option>@endforeach</select><input type="hidden" id="unit" name="unit" value="{{ old('unit', $product->unit ?: 'pcs') }}"></div>
         <div><label class="label">Harga jual satuan dasar *</label><input class="input" name="price" type="number" min="0" value="{{ old('price', $product->price) }}" required></div>
         <div><label class="label">Harga beli per satuan dasar *</label><input class="input" name="buy_price" type="number" min="0" value="{{ old('buy_price', $product->buy_price ?? 0) }}" required></div>
         <div><label class="label">Stok awal / stok dasar *</label><input class="input" name="stock" type="number" min="0" value="{{ old('stock', $product->stock ?? 0) }}" required></div>
@@ -32,6 +32,14 @@
 
     <div class="mt-6 flex gap-3"><button class="btn-primary">Simpan Master Barang</button><a class="btn-muted" href="{{ route('products.index') }}">Batal</a></div>
 </form>
+
+<dialog class="w-full max-w-md rounded-2xl border border-slate-200 p-0 shadow-xl" id="unit-dialog">
+    <form class="p-6" id="unit-form" method="dialog">
+        <div class="flex items-start justify-between gap-4"><div><h2 class="text-lg font-black">Tambah satuan baru</h2><p class="mt-1 text-sm text-slate-500">Satuan baru langsung aktif dan dipilih untuk barang ini.</p></div><button class="text-xl text-slate-400" type="button" id="close-unit-dialog" aria-label="Tutup">×</button></div>
+        <div class="mt-5 grid gap-4"><div><label class="label" for="new-unit-name">Nama satuan *</label><input class="input" id="new-unit-name" maxlength="40" placeholder="Contoh: Botol" required></div><div><label class="label" for="new-unit-symbol">Simbol</label><input class="input" id="new-unit-symbol" maxlength="15" placeholder="Contoh: btl"></div><p class="hidden text-sm font-semibold text-red-600" id="unit-error"></p></div>
+        <div class="mt-6 flex justify-end gap-3"><button class="btn-muted" type="button" id="cancel-unit">Batal</button><button class="btn-primary" id="save-unit" type="submit">Simpan satuan</button></div>
+    </form>
+</dialog>
 
 <script>
 const rows = @json(old('packagings', $packagingRows));
@@ -60,5 +68,38 @@ document.getElementById('unit_id').addEventListener('change', event => {
     const option = event.target.selectedOptions[0];
     if (option.dataset.name) document.getElementById('unit').value = option.dataset.name;
 });
+
+const unitDialog = document.getElementById('unit-dialog');
+const unitForm = document.getElementById('unit-form');
+const unitError = document.getElementById('unit-error');
+const newUnitName = document.getElementById('new-unit-name');
+const newUnitSymbol = document.getElementById('new-unit-symbol');
+document.getElementById('add-unit').onclick = () => { unitError.classList.add('hidden'); unitForm.reset(); unitDialog.showModal(); newUnitName.focus(); };
+document.getElementById('close-unit-dialog').onclick = document.getElementById('cancel-unit').onclick = () => unitDialog.close();
+unitForm.onsubmit = async event => {
+    event.preventDefault();
+    unitError.classList.add('hidden');
+    const saveButton = document.getElementById('save-unit');
+    saveButton.disabled = true;
+    try {
+        const response = await fetch(@json(route('products.units.store')), {
+            method: 'POST',
+            headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value },
+            body: JSON.stringify({ name: newUnitName.value, symbol: newUnitSymbol.value }),
+        });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(Object.values(payload.errors ?? {})[0]?.[0] ?? 'Satuan tidak dapat disimpan.');
+        const option = new Option(payload.name + (payload.symbol ? ' (' + payload.symbol + ')' : ''), payload.id, true, true);
+        option.dataset.name = payload.name;
+        document.getElementById('unit_id').add(option);
+        document.getElementById('unit').value = payload.name;
+        unitDialog.close();
+    } catch (error) {
+        unitError.textContent = error.message;
+        unitError.classList.remove('hidden');
+    } finally {
+        saveButton.disabled = false;
+    }
+};
 </script>
 @endsection

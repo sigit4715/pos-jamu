@@ -38,6 +38,26 @@ class ProductController extends Controller
         return view('products.form', $this->formData(new Product));
     }
 
+    public function storeUnit(Request $request)
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:40', 'unique:units,name'],
+            'symbol' => ['nullable', 'string', 'max:15'],
+        ]);
+
+        $unit = Unit::create([
+            'name' => trim($data['name']),
+            'symbol' => filled($data['symbol'] ?? null) ? trim($data['symbol']) : null,
+            'is_active' => true,
+        ]);
+
+        return response()->json([
+            'id' => $unit->id,
+            'name' => $unit->name,
+            'symbol' => $unit->symbol,
+        ], 201);
+    }
+
     public function store(Request $request)
     {
         $product = $this->save($request, new Product);
