@@ -29,6 +29,7 @@ class MultiStoreIsolationTest extends TestCase
             ->assertDontSee($branchProduct->name);
 
         $this->actingAs($mainCashier)->post(route('sales.store'), [
+            'idempotency_key' => '5e9f2200-c5c1-4a1f-a137-1e0349aa2004',
             'payment_method' => 'cash',
             'paid_amount' => 10000,
             'items' => [['product_id' => $mainProduct->id, 'quantity' => 1]],

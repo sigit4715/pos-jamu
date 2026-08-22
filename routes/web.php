@@ -44,6 +44,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/notifikasi-aktivitas', [NotificationController::class, 'index'])->middleware('permission:dashboard.view')->name('notifications.index');
     Route::get('/kasir', [SaleController::class, 'create'])->middleware('permission:sales.create')->name('sales.create');
     Route::post('/kasir', [SaleController::class, 'store'])->middleware('permission:sales.create')->name('sales.store');
+    Route::get('/kasir/transaksi/{idempotencyKey}/status', [SaleController::class, 'status'])->middleware('permission:sales.create')->whereUuid('idempotencyKey')->name('sales.status');
     Route::get('/penjualan', [SaleController::class, 'index'])->middleware('permission:sales.view')->name('sales.index');
     Route::get('/penjualan/{sale}/struk', [SaleController::class, 'receipt'])->middleware('permission:sales.view')->name('sales.receipt');
 

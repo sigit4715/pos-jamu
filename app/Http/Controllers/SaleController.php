@@ -14,6 +14,7 @@ use App\Models\StockLog;
 use App\Services\AuditService;
 use App\Services\BatchService;
 use App\Services\StoreContext;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -40,6 +41,7 @@ class SaleController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
+            'idempotency_key' => ['required', 'uuid'],
             'customer_id' => ['nullable', 'integer', 'exists:customers,id'],
             'customer_name' => ['nullable', 'max:100'],
             'discount' => ['nullable', 'numeric', 'min:0'],
@@ -53,20 +55,90 @@ class SaleController extends Controller
         ]);
 
         $storeId = $this->storeId();
-        $sale = DB::transaction(function () use ($data, $storeId) {
+        if ($sale = $this->saleForIdempotencyKey($storeId, $data['idempotency_key'])) {
+            return $this->saleResponse($request, $sale, true);
+        }
+
+        try {
+            [$sale, $alreadySaved] = DB::transaction(function () use ($data, $storeId) {
+                if ($sale = $this->saleForIdempotencyKey($storeId, $data['idempotency_key'])) {
+                    return [$sale, true];
+                }
+
+                return [$this->createSale($data, $storeId), false];
+            }, 3);
+        } catch (QueryException $exception) {
+            if (! $this->isIdempotencyConflict($exception) || ! ($sale = $this->saleForIdempotencyKey($storeId, $data['idempotency_key']))) {
+                throw $exception;
+            }
+
+            $alreadySaved = true;
+        }
+
+        return $this->saleResponse($request, $sale, $alreadySaved);
+    }
+
+    public function status(string $idempotencyKey)
+    {
+        validator(['idempotency_key' => $idempotencyKey], [
+            'idempotency_key' => ['required', 'uuid'],
+        ])->validate();
+
+        $sale = $this->saleForIdempotencyKey($this->storeId(), $idempotencyKey, false);
+        if (! $sale) {
+            return response()->json([
+                'status' => 'not_found',
+                'message' => 'Transaksi belum ditemukan. Jangan membuat transaksi baru; coba periksa atau kirim ulang transaksi yang sama.',
+            ], 404);
+        }
+
+        abort_unless($sale->cashier_id === auth()->id() || auth()->user()->hasPermission('sales.view_all'), 403);
+
+        return response()->json([
+            'status' => 'saved',
+            'message' => 'Transaksi berhasil disimpan.',
+            'invoice_number' => $sale->invoice_number,
+            'receipt_url' => route('sales.receipt', $sale),
+        ]);
+    }
+
+    private function createSale(array $data, int $storeId): Sale
+    {
             $items = collect($data['items']);
             $products = Product::where('store_id', $storeId)->whereIn('id', $items->pluck('product_id'))->with(['packagings' => fn ($query) => $query->where('is_active', true)])->lockForUpdate()->get()->keyBy('id');
+            $preparedItems = $items->map(function (array $item) use ($products) {
+                $product = $products->get($item['product_id']);
+                if (! $product || ! $product->is_active) {
+                    throw ValidationException::withMessages(['items' => 'Produk tidak tersedia.']);
+                }
+
+                $packaging = $this->packagingFor($product, $item['product_packaging_id'] ?? null);
+                $conversionQuantity = $packaging?->conversion_quantity ?? 1;
+
+                return [
+                    'product' => $product,
+                    'packaging' => $packaging,
+                    'quantity' => (int) $item['quantity'],
+                    'base_quantity' => (int) $item['quantity'] * $conversionQuantity,
+                ];
+            });
+            $requestedQuantities = $preparedItems
+                ->groupBy(fn (array $item) => $item['product']->id)
+                ->map(fn ($lines) => $lines->sum('base_quantity'));
+
+            foreach ($requestedQuantities as $productId => $requestedQuantity) {
+                $product = $products->get((int) $productId);
+                if ($product->stock < $requestedQuantity) {
+                    throw ValidationException::withMessages(['items' => 'Stok ' . $product->name . ' tidak mencukupi.']);
+                }
+            }
+
             $subtotal = 0;
             $promoDiscount = 0;
 
-            foreach ($items as $item) {
-                $product = $products->get($item['product_id']);
-                $packaging = $this->packagingFor($product, $item['product_packaging_id'] ?? null);
-                $conversionQuantity = $packaging?->conversion_quantity ?? 1;
-                $baseQuantity = (int) $item['quantity'] * $conversionQuantity;
-                if (!$product || !$product->is_active || $product->stock < $baseQuantity) {
-                    throw ValidationException::withMessages(['items' => 'Stok ' . ($product?->name ?? 'produk') . ' tidak mencukupi.']);
-                }
+            foreach ($preparedItems as $item) {
+                $product = $item['product'];
+                $packaging = $item['packaging'];
                 $line = (float) ($packaging?->price ?? $product->price) * $item['quantity'];
                 $subtotal += $line;
                 $promotion = Promotion::where('store_id', $storeId)->active()->where(function ($query) use ($product) {
@@ -86,7 +158,8 @@ class SaleController extends Controller
             $shift = CashierShift::where('store_id', $storeId)->where('user_id', auth()->id())->where('status', 'open')->latest()->first();
             $sale = Sale::create([
                 'store_id' => $storeId,
-                'invoice_number' => 'JMU-' . now()->format('YmdHis') . '-' . str_pad((string) (Sale::max('id') + 1), 4, '0', STR_PAD_LEFT),
+                'invoice_number' => 'PENDING-' . $storeId . '-' . $data['idempotency_key'],
+                'idempotency_key' => $data['idempotency_key'],
                 'cashier_id' => auth()->id(),
                 'shift_id' => $shift?->id,
                 'customer_id' => $customer?->id,
@@ -99,27 +172,65 @@ class SaleController extends Controller
                 'change_amount' => $data['paid_amount'] - $total,
                 'notes' => $data['notes'] ?? null,
             ]);
+            $sale->update(['invoice_number' => $this->invoiceNumber($sale)]);
             if ($customer) $customer->increment('points', (int) floor($total / 10000));
 
-            foreach ($items as $item) {
-                $product = $products[$item['product_id']];
-                $packaging = $this->packagingFor($product, $item['product_packaging_id'] ?? null);
+            $runningStocks = $products->mapWithKeys(fn (Product $product) => [$product->id => (int) $product->stock])->all();
+            foreach ($preparedItems as $item) {
+                $product = $item['product'];
+                $packaging = $item['packaging'];
                 $conversionQuantity = $packaging?->conversion_quantity ?? 1;
                 $unitName = $packaging?->name ?? $product->unit;
-                $baseQuantity = (int) $item['quantity'] * $conversionQuantity;
-                $before = $product->stock;
+                $baseQuantity = $item['base_quantity'];
+                $before = $runningStocks[$product->id];
                 $price = (float) ($packaging?->price ?? $product->price);
                 $line = $price * $item['quantity'];
                 SaleItem::create(['sale_id' => $sale->id, 'product_id' => $product->id, 'product_packaging_id' => $packaging?->id, 'product_name' => $product->name, 'unit_name' => $unitName, 'conversion_quantity' => $conversionQuantity, 'price' => $price, 'quantity' => $item['quantity'], 'base_quantity' => $baseQuantity, 'subtotal' => $line]);
                 $product->decrement('stock', $baseQuantity);
+                $runningStocks[$product->id] -= $baseQuantity;
                 app(BatchService::class)->consume($product, $baseQuantity);
-                StockLog::create(['store_id' => $storeId, 'product_id' => $product->id, 'user_id' => auth()->id(), 'type' => 'sale', 'quantity_change' => -$baseQuantity, 'transaction_quantity' => $item['quantity'], 'unit_name' => $unitName, 'conversion_quantity' => $conversionQuantity, 'stock_before' => $before, 'stock_after' => $before - $baseQuantity, 'reference' => $sale->invoice_number, 'notes' => 'Penjualan kasir']);
+                StockLog::create(['store_id' => $storeId, 'product_id' => $product->id, 'user_id' => auth()->id(), 'type' => 'sale', 'quantity_change' => -$baseQuantity, 'transaction_quantity' => $item['quantity'], 'unit_name' => $unitName, 'conversion_quantity' => $conversionQuantity, 'stock_before' => $before, 'stock_after' => $runningStocks[$product->id], 'reference' => $sale->invoice_number, 'notes' => 'Penjualan kasir']);
             }
             AuditService::log('sale.created', $sale, 'Transaksi penjualan dibuat', ['total' => $total, 'payment_method' => $data['payment_method']]);
             return $sale;
-        });
+    }
 
-        return redirect()->route('sales.receipt', $sale)->with('success', 'Transaksi berhasil disimpan.');
+    private function saleResponse(Request $request, Sale $sale, bool $alreadySaved)
+    {
+        abort_unless($sale->cashier_id === auth()->id() || auth()->user()->hasPermission('sales.view_all'), 403);
+
+        $message = $alreadySaved ? 'Transaksi sebelumnya sudah tersimpan. Stok tidak dikurangi lagi.' : 'Transaksi berhasil disimpan.';
+        if ($request->expectsJson()) {
+            return response()->json([
+                'status' => $alreadySaved ? 'already_saved' : 'saved',
+                'message' => $message,
+                'invoice_number' => $sale->invoice_number,
+                'receipt_url' => route('sales.receipt', $sale),
+            ], $alreadySaved ? 200 : 201);
+        }
+
+        return redirect()->route('sales.receipt', $sale)->with('success', $message);
+    }
+
+    private function saleForIdempotencyKey(int $storeId, string $idempotencyKey, bool $enforceAccess = true): ?Sale
+    {
+        $sale = Sale::where('store_id', $storeId)->where('idempotency_key', $idempotencyKey)->first();
+
+        if ($sale && $enforceAccess) {
+            abort_unless($sale->cashier_id === auth()->id() || auth()->user()->hasPermission('sales.view_all'), 403);
+        }
+
+        return $sale;
+    }
+
+    private function isIdempotencyConflict(QueryException $exception): bool
+    {
+        return str_contains(strtolower($exception->getMessage()), 'idempotency_key');
+    }
+
+    private function invoiceNumber(Sale $sale): string
+    {
+        return 'JMU-' . $sale->created_at->format('Ymd') . '-' . str_pad((string) $sale->id, 8, '0', STR_PAD_LEFT);
     }
 
     public function receipt(Sale $sale)

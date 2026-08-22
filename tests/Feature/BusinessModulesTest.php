@@ -23,7 +23,7 @@ class BusinessModulesTest extends TestCase
 
         $this->actingAs($cashier)->post(route('shifts.open'), ['opening_cash' => 100000])->assertRedirect();
         $shift = CashierShift::firstOrFail();
-        $this->actingAs($cashier)->post(route('sales.store'), ['payment_method' => 'cash', 'paid_amount' => 12000, 'items' => [['product_id' => $product->id, 'quantity' => 1]]])->assertRedirect();
+        $this->actingAs($cashier)->post(route('sales.store'), ['idempotency_key' => 'bc458d28-f83b-40ad-9938-1e0349aa2001', 'payment_method' => 'cash', 'paid_amount' => 12000, 'items' => [['product_id' => $product->id, 'quantity' => 1]]])->assertRedirect();
         $this->assertDatabaseHas('sales', ['shift_id' => $shift->id]);
 
         $this->actingAs($cashier)->post(route('shifts.close'), ['closing_cash' => 112000])->assertRedirect();
@@ -49,7 +49,7 @@ class BusinessModulesTest extends TestCase
 
         $this->actingAs($cashier)->post(route('customers.store'), ['name' => 'Pelanggan Uji', 'phone' => '08120000111', 'is_active' => 1])->assertRedirect();
         $customer = Customer::firstOrFail();
-        $this->actingAs($cashier)->post(route('sales.store'), ['customer_id' => $customer->id, 'payment_method' => 'cash', 'paid_amount' => 20000, 'items' => [['product_id' => $product->id, 'quantity' => 1]]])->assertRedirect();
+        $this->actingAs($cashier)->post(route('sales.store'), ['idempotency_key' => 'ec00c6df-9026-4c01-a1de-1e0349aa2002', 'customer_id' => $customer->id, 'payment_method' => 'cash', 'paid_amount' => 20000, 'items' => [['product_id' => $product->id, 'quantity' => 1]]])->assertRedirect();
 
         $this->assertDatabaseHas('sales', ['customer_id' => $customer->id, 'customer_name' => 'Pelanggan Uji']);
         $this->assertSame(2, $customer->fresh()->points);
@@ -80,7 +80,7 @@ class BusinessModulesTest extends TestCase
         $this->assertDatabaseHas('promotions', ['product_id' => $product->id, 'value' => 1000]);
 
         $this->actingAs($cashier)->post(route('cash.store'), ['type' => 'expense', 'category' => 'Transport', 'amount' => 5000, 'description' => 'Antar barang'])->assertRedirect();
-        $this->actingAs($cashier)->post(route('sales.store'), ['payment_method' => 'cash', 'paid_amount' => 9000, 'items' => [['product_id' => $product->id, 'quantity' => 1]]])->assertRedirect();
+        $this->actingAs($cashier)->post(route('sales.store'), ['idempotency_key' => '976a0b6e-a0d5-48dd-a632-1e0349aa2003', 'payment_method' => 'cash', 'paid_amount' => 9000, 'items' => [['product_id' => $product->id, 'quantity' => 1]]])->assertRedirect();
         $this->assertDatabaseHas('sales', ['total' => 9000]);
         $this->assertDatabaseHas('activity_logs', ['action' => 'sale.created']);
         $this->actingAs($admin)->get(route('reports.sales.export'))->assertDownload();

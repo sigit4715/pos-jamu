@@ -91,6 +91,7 @@ class WarehousePackagingTransferTest extends TestCase
         $this->assertDatabaseHas('stock_logs', ['store_id' => $store->id, 'product_id' => $destinationProduct->id, 'type' => 'transfer_in', 'quantity_change' => 24]);
 
         $this->actingAs($warehouseUser)->post(route('sales.store'), [
+            'idempotency_key' => '4bf34bde-bf2f-42d3-9a7b-1e0349aa2005',
             'payment_method' => 'cash',
             'paid_amount' => 180000,
             'items' => [[
