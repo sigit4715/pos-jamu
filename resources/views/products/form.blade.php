@@ -69,6 +69,28 @@ document.getElementById('unit_id').addEventListener('change', event => {
     if (option.dataset.name) document.getElementById('unit').value = option.dataset.name;
 });
 
+const unitSelect = document.getElementById('unit_id');
+async function syncUnitsFromMasterData() {
+    try {
+        const response = await fetch(@json(route('products.units.index')), { headers: { 'Accept': 'application/json' } });
+        if (!response.ok) return;
+        const units = await response.json();
+        const existingIds = new Set(Array.from(unitSelect.options).map(option => option.value));
+        units.forEach(unit => {
+            if (existingIds.has(String(unit.id))) return;
+            const option = new Option(unit.name + (unit.symbol ? ' (' + unit.symbol + ')' : ''), unit.id);
+            option.dataset.name = unit.name;
+            unitSelect.add(option);
+        });
+    } catch (_) {
+        // The form stays usable with the units that were loaded initially.
+    }
+}
+window.addEventListener('focus', syncUnitsFromMasterData);
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') syncUnitsFromMasterData();
+});
+
 const unitDialog = document.getElementById('unit-dialog');
 const unitForm = document.getElementById('unit-form');
 const unitError = document.getElementById('unit-error');

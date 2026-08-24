@@ -38,6 +38,15 @@ class ProductController extends Controller
         return view('products.form', $this->formData(new Product));
     }
 
+    public function units()
+    {
+        return response()->json(
+            Unit::where('is_active', true)
+                ->orderBy('name')
+                ->get(['id', 'name', 'symbol'])
+        );
+    }
+
     public function storeUnit(Request $request)
     {
         $data = $request->validate([

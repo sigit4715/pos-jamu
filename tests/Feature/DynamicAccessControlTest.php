@@ -7,6 +7,7 @@ use App\Models\MenuItem;
 use App\Models\Permission;
 use App\Models\Product;
 use App\Models\Store;
+use App\Models\Unit;
 use App\Models\User;
 use App\Models\UserPermissionOverride;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -70,6 +71,38 @@ class DynamicAccessControlTest extends TestCase
             ->assertOk()
             ->assertSee('Kelola Satuan')
             ->assertSee(route('master.index').'#satuan', false);
+    }
+
+    public function test_product_form_can_load_units_added_from_master_data_without_reloading(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($admin)->post(route('master.store', 'units'), [
+            'name' => 'Dus',
+            'symbol' => 'dus',
+        ])->assertRedirect();
+
+        $unit = Unit::where('name', 'Dus')->firstOrFail();
+        $this->actingAs($admin)->getJson(route('products.units.index'))
+            ->assertOk()
+            ->assertJsonFragment([
+                'id' => $unit->id,
+                'name' => 'Dus',
+                'symbol' => 'dus',
+            ]);
+    }
+
+    public function test_product_form_can_save_a_unit_with_the_quick_add_action(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($admin)->postJson(route('products.units.store'), [
+            'name' => 'Pouch',
+            'symbol' => 'pch',
+        ])->assertCreated()
+            ->assertJsonFragment(['name' => 'Pouch', 'symbol' => 'pch']);
+
+        $this->assertDatabaseHas('units', ['name' => 'Pouch', 'symbol' => 'pch', 'is_active' => true]);
     }
 
     public function test_only_admin_can_manage_login_accounts_even_with_a_permission_override(): void
