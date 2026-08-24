@@ -66,7 +66,10 @@ class DynamicAccessControlTest extends TestCase
         $admin = User::factory()->create(['role' => 'admin']);
         $product = Product::create(['code' => 'FORM-01', 'name' => 'Jamu Form', 'price' => 10000, 'stock' => 2, 'unit' => 'pcs', 'is_active' => true]);
 
-        $this->actingAs($admin)->get(route('products.edit', $product))->assertOk();
+        $this->actingAs($admin)->get(route('products.edit', $product))
+            ->assertOk()
+            ->assertSee('Kelola Satuan')
+            ->assertSee(route('master.index').'#satuan', false);
     }
 
     public function test_only_admin_can_manage_login_accounts_even_with_a_permission_override(): void
