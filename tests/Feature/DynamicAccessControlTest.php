@@ -73,7 +73,7 @@ class DynamicAccessControlTest extends TestCase
             ->assertSee(route('master.index').'#satuan', false);
     }
 
-    public function test_product_form_can_load_units_added_from_master_data_without_reloading(): void
+    public function test_product_form_can_load_all_units_stored_in_master_data_without_reloading(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);
 
@@ -83,12 +83,28 @@ class DynamicAccessControlTest extends TestCase
         ])->assertRedirect();
 
         $unit = Unit::where('name', 'Dus')->firstOrFail();
+        $olderUnit = Unit::create([
+            'name' => 'Karton Lama',
+            'symbol' => 'krt',
+            'is_active' => false,
+        ]);
+
+        $this->actingAs($admin)->get(route('products.create'))
+            ->assertOk()
+            ->assertSee('Dus')
+            ->assertSee('Karton Lama');
+
         $this->actingAs($admin)->getJson(route('products.units.index'))
             ->assertOk()
             ->assertJsonFragment([
                 'id' => $unit->id,
                 'name' => 'Dus',
                 'symbol' => 'dus',
+            ])
+            ->assertJsonFragment([
+                'id' => $olderUnit->id,
+                'name' => 'Karton Lama',
+                'symbol' => 'krt',
             ]);
     }
 

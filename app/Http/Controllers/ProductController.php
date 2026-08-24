@@ -41,7 +41,7 @@ class ProductController extends Controller
     public function units()
     {
         return response()->json(
-            Unit::where('is_active', true)
+            Unit::query()
                 ->orderBy('name')
                 ->get(['id', 'name', 'symbol'])
         );
@@ -105,7 +105,7 @@ class ProductController extends Controller
                 'is_active' => $packaging->is_active,
             ])->values()->all(),
             'categories' => Category::orderBy('name')->get(),
-            'units' => Unit::where('is_active', 1)->orderBy('name')->get(),
+            'units' => Unit::orderBy('name')->get(),
             'brands' => Brand::where('is_active', 1)->orderBy('name')->get(),
             'suppliers' => Supplier::where('is_active', 1)->orderBy('name')->get(),
         ];
